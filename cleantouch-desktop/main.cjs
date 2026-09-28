@@ -140,7 +140,7 @@ app.whenReady().then(async () => {
     return { keyConfigured: false };
   });
   ipcMain.handle('api:health', () => mode === 'local'
-    ? { status: 200, body: { ok: true, providerConfigured: Boolean(localKey), provider: 'gemini', model: 'gemini-3.8-flash', local: true } }
+    ? { status: 200, body: { ok: true, providerConfigured: Boolean(localKey), provider: 'gemini', model: 'gemini-3.5-flash-lite', local: true } }
     : fetchApi('/health'));
   ipcMain.handle('api:scan', async (_event, image) => {
     if (!(image instanceof Uint8Array) || image.length === 0 || image.length > 8 * 1024 * 1024) {

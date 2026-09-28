@@ -14,23 +14,23 @@ npm.cmd run dev
 
 기본 주소는 `http://127.0.0.1:8790`입니다.
 
-## 권장 공급자: Gemini 3.8 Flash
+## 권장 공급자: Gemini 3.5 Flash-Lite
 
-CleanTouch의 기본 권장 모델은 안정 버전 `gemini-3.8-flash`입니다. 여러 상품의 특징과 영역 좌표를 한 장면에서 받아 기존 Android 결과 형식으로 변환합니다. [공식 모델 정보](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash)
+CleanTouch의 기본 권장 모델은 `gemini-3.5-flash-lite`입니다. 여러 상품의 특징과 영역 좌표를 한 장면에서 받아 기존 Android 결과 형식으로 변환합니다. [공식 모델 목록](https://ai.google.dev/gemini-api/docs/models)
 
 `.env`의 `GEMINI_API_KEY`에 [Google AI Studio에서 발급한 키](https://aistudio.google.com/apikey)를 저장합니다. 키는 서버에서만 읽으며 HTTP 인증 헤더로 전달합니다.
 
 ```env
 SEARCH_PROVIDER=gemini
-GEMINI_MODEL=gemini-3.8-flash
+GEMINI_MODEL=gemini-3.5-flash-lite
 GEMINI_API_KEY=your-api-key
 ```
 
-연결 검증은 `npm.cmd run check:gemini`입니다. 이 명령은 서버를 빌드한 뒤 `.env`의 `GEMINI_MODEL`에 설정된 모델(없으면 기본 Gemini 3.8 Flash)에 테스트 이미지 한 장을 보냅니다. 성공한 결과만 `artifacts/recognition-tests/gemini-latest-response.json`에 저장하고, 키가 비어 있으면 외부 요청 없이 종료합니다.
+연결 검증은 `npm.cmd run check:gemini`입니다. 이 명령은 서버를 빌드한 뒤 `.env`의 `GEMINI_MODEL`에 설정된 모델(없으면 기본 Gemini 3.5 Flash-Lite)에 테스트 이미지 한 장을 보냅니다. 성공한 결과만 `artifacts/recognition-tests/gemini-latest-response.json`에 저장하고, 키가 비어 있으면 외부 요청 없이 종료합니다.
 
 `GET /health`의 `provider`, `model`로 실제 실행 중인 공급자와 모델을 확인할 수 있습니다. `providerConfigured`는 키 설정 여부이며 키의 유효성이나 잔여 한도까지 보증하지 않습니다.
 
-2026-09-28 현재: 로컬 `.env`는 `SEARCH_PROVIDER=gemini`, `GEMINI_MODEL=gemini-3.8-flash`로 설정되어 있고 키는 서버에만 저장됩니다. API 키로 모델 목록을 조회하면 HTTP 200이지만, 테스트 이미지의 `generateContent` 요청은 Gemini 3.8 Flash와 3.6 Flash에서 HTTP 503을 반환했습니다. 실제 상품 인식 성공은 아직 확인되지 않았습니다. Gemini의 일시적 5xx 응답은 서버에서 한 번만 지연 재시도하고, 계속 실패하거나 긴 `Retry-After`를 받으면 안전한 `503 / PROVIDER_UNAVAILABLE` 응답을 Android에 반환합니다. 실행 중인 서버는 설정 변경 전 시작된 프로세스이므로 새 빌드로 재시작해야 합니다.
+2026-09-28 현재: Gemini 3.8 Flash는 테스트 이미지 요청에서 HTTP 503을 반환했지만, 같은 서버 키로 Gemini 3.5 Flash-Lite는 HTTP 200과 상품 후보 2개를 반환했습니다. 로컬 `.env`도 `gemini-3.5-flash-lite`를 사용하며 키는 서버에만 저장됩니다. Gemini의 일시적 5xx 응답은 서버에서 한 번만 지연 재시도하고, 계속 실패하거나 긴 `Retry-After`를 받으면 안전한 `503 / PROVIDER_UNAVAILABLE` 응답을 Android에 반환합니다. 사용자의 실제 영상과 전체 장면 분석은 별도로 확인해야 합니다.
 
 ## Google Cloud Vision Web Detection 대체 공급자
 

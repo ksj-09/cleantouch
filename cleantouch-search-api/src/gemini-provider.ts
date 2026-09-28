@@ -29,7 +29,7 @@ export type ProductDescription = {
   confidence?: number;
 };
 
-export const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
 
 /**
  * Reads a product from the captured image with the Gemini Developer API and
