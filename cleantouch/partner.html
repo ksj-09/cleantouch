@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f1ede5" />
+    <meta name="description" content="클린터치 SDK가 설치된 가상 고객사 쇼핑몰" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%231c2724'/%3E%3Cpath d='M18 45V19h8l6 12 6-12h8v26' fill='none' stroke='%23e5d7bd' stroke-width='6'/%3E%3C/svg%3E" />
+    <title>MORROW — CleanTouch partner demo</title>
+  </head>
+  <body>
+    <div id="partner-root">
+      <header class="shop-header">
+        <a class="shop-logo" href="#">MORROW<span>SEOUL</span></a>
+        <nav><a href="#new">NEW</a><a href="#women">WOMEN</a><a href="#journal">JOURNAL</a></nav>
+        <div class="shop-tools"><button>SEARCH</button><button>CART <b id="cart-count">0</b></button></div>
+      </header>
+
+      <main>
+        <section class="shop-hero">
+          <div class="hero-copy">
+            <span class="collection-index">AUTUMN EDIT / 026</span>
+            <h1>Quiet forms,<br />made to move.</h1>
+            <p>일상의 움직임을 생각한 가벼운 구조와 오래 사용할수록 자연스러워지는 소재를 소개합니다.</p>
+            <a href="#featured">컬렉션 보기 <span>→</span></a>
+            <aside class="sdk-proof"><i></i><span>이 쇼핑몰의 기존 영상에 CleanTouch SDK가 설치되어 있습니다.</span></aside>
+          </div>
+
+          <div class="commerce-video" id="video-container">
+            <video id="product-video" src="/partner-fashion-demo.webm" autoplay muted loop playsinline></video>
+            <button id="video-toggle" class="video-toggle" aria-label="영상 일시정지">Ⅱ</button>
+            <div class="video-progress"><span id="video-progress-value" /></div>
+          </div>
+
+          <aside class="product-rail" id="featured">
+            <span>FEATURED ITEM</span>
+            <div class="rail-product-image"><i /></div>
+            <h2>Signature Shoulder Bag</h2>
+            <p>89,000원</p>
+            <small>영상 속 가방을 길게 눌러보세요</small>
+          </aside>
+        </section>
+
+        <section class="integration-section">
+          <div>
+            <span>PARTNER INTEGRATION</span>
+            <h2>기존 사이트는 그대로.<br />영상에 터치 경험만 추가합니다.</h2>
+          </div>
+          <pre><code>&lt;script src="https://cdn.cleantouch.kr/v1/cleantouch.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  CleanTouch.attach({
+    video: "#product-video",
+    contentId: "morrow-fall-026",
+    dataUrl: "http://127.0.0.1:8787/v1/content/morrow-fall-026",
+    analyticsUrl: "http://127.0.0.1:8787/v1/events"
+  });
+&lt;/script&gt;</code></pre>
+          <a href="/">CleanTouch Studio 열기 →</a>
+        </section>
+      </main>
+
+      <div class="partner-toast" id="partner-toast" role="status" aria-live="polite"></div>
+      <aside class="event-console" aria-label="SDK 이벤트 로그">
+        <header><span>SDK LIVE EVENTS</span><i /></header>
+        <ol id="event-list"><li>SDK 연결 대기 중…</li></ol>
+      </aside>
+    </div>
+    <script src="http://127.0.0.1:8787/v1/cleantouch.js"></script>
+    <script type="module" src="/src/partner.ts"></script>
+  </body>
+</html>

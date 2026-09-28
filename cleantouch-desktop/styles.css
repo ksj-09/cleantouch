@@ -1,0 +1,52 @@
+:root { color-scheme: dark; font-family: "Segoe UI", "Malgun Gothic", sans-serif; background: #101922; color: #edf7f5; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: radial-gradient(circle at 90% 0, #204b4a 0, transparent 34%), #101922; }
+button, input { font: inherit; }
+button { cursor: pointer; border: 0; border-radius: 12px; padding: 11px 16px; font-weight: 700; transition: filter .15s, transform .15s; }
+button:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
+button:disabled { opacity: .45; cursor: default; }
+.shell { max-width: 1100px; margin: auto; padding: 26px 34px 50px; }
+.topbar { display: flex; align-items: center; gap: 12px; margin-bottom: 26px; }
+.topbar strong, .topbar small { display: block; }
+.topbar strong { font-size: 21px; letter-spacing: -.5px; }
+.topbar small { color: #9eb6b4; font-size: 12px; margin-top: 2px; }
+.mark { background: #73e3c3; color: #13302c; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; font-size: 24px; }
+.badge { margin-left: auto; color: #86dabf; border: 1px solid #37675e; border-radius: 100px; padding: 6px 12px; font-size: 12px; }
+.hero { display: flex; align-items: center; justify-content: space-between; padding: 34px 38px; border-radius: 25px; background: linear-gradient(120deg,#203a43,#1c3b37 60%,#216151); margin-bottom: 20px; overflow: hidden; }
+.hero h1 { font-size: clamp(28px,4vw,43px); line-height: 1.22; margin: 8px 0 16px; letter-spacing: -1.5px; }
+.hero h1 em { color: #8cf0ce; font-style: normal; }
+.hero p { color: #c5d9d7; margin: 0; line-height: 1.6; }
+.hero .eyebrow { color: #8cf0ce; font-size: 11px; letter-spacing: 2px; font-weight: 800; }
+.hero-symbol { font-size: 150px; color: #73e3c3; opacity: .16; margin-right: 18px; line-height: 1; }
+.panel { background: #182731; border: 1px solid #2a4048; border-radius: 20px; padding: 23px 26px; margin-bottom: 16px; }
+.panel h2 { font-size: 20px; margin: 0 0 7px; letter-spacing: -.3px; }
+.panel p { color: #abc0c0; margin: 0; font-size: 13px; line-height: 1.6; }
+.section-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.server-row, .actions { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 17px; }
+.mode-row { display: flex; gap: 8px; margin-top: 18px; }
+.mode-button { background: #294049; color: #ecf8f4; }
+.mode-button.selected { background: #7be4c5; color: #112c29; }
+.server-row input { flex: 1 1 310px; background: #0f1d26; color: #e7f3f0; border: 1px solid #34535b; border-radius: 11px; padding: 10px 14px; outline: none; }
+.server-row input:focus { border-color: #73e3c3; }
+.secondary { background: #294049; color: #ecf8f4; }
+.primary { background: #7be4c5; color: #112c29; }
+.danger { background: #f3b698; color: #3f2520; }
+.hint { padding-top: 10px; min-height: 24px; }
+.sources { display: grid; grid-template-columns: repeat(auto-fill,minmax(190px,1fr)); gap: 12px; }
+.source { text-align: left; background: #10212a; color: #e8f4f0; border: 2px solid transparent; padding: 8px; }
+.source.selected { border-color: #7be4c5; }
+.source img { display: block; width: 100%; aspect-ratio: 16/9; object-fit: contain; background: #071218; border-radius: 7px; }
+.source span { display: block; margin: 9px 3px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+.control { display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+.control .actions { margin: 0; justify-content: flex-end; }
+.progress { color: #82e8c8 !important; font-weight: 700; margin-top: 8px !important; }
+.products { display: grid; grid-template-columns: repeat(auto-fill,minmax(250px,1fr)); gap: 12px; }
+.product { display: flex; gap: 12px; background: #10212a; border: 1px solid #2c4850; border-radius: 14px; padding: 10px; }
+.product img { width: 80px; height: 80px; object-fit: cover; border-radius: 9px; flex: none; background: #0b161c; }
+.product h3 { margin: 1px 0 7px; font-size: 14px; line-height: 1.4; }
+.product small { display: block; color: #9eb7b6; font-size: 11px; margin-bottom: 7px; }
+.product button { display: block; background: none; color: #82e8c8; padding: 0; text-align: left; font-size: 12px; margin: 5px 0; }
+.empty { padding: 12px 0; }
+footer { color: #8fa9a7; font-size: 12px; line-height: 1.6; margin-top: 28px; }
+@media(max-width:760px) { .shell { padding: 18px; } .hero { padding: 25px; } .hero-symbol { display: none; } .control { display: block; } .control .actions { justify-content: start; margin-top: 18px; } }

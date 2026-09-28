@@ -1,0 +1,35 @@
+{
+  "morrow-fall-026": {
+    "contentId": "morrow-fall-026",
+    "title": "가을 데일리룩 01",
+    "published": true,
+    "updatedAt": "2026-09-18T05:23:57.456Z",
+    "products": [
+      {
+        "id": "bag-014",
+        "name": "시그니처 숄더백",
+        "price": 89000,
+        "currency": "KRW",
+        "productUrl": "https://shop.example.com/products/bag-014",
+        "activeFrom": 0,
+        "activeTo": 30,
+        "keyframes": [
+          {
+            "time": 0,
+            "x": 50.8,
+            "y": 46.8,
+            "width": 36,
+            "height": 25.5
+          },
+          {
+            "time": 30,
+            "x": 50.8,
+            "y": 46.8,
+            "width": 36,
+            "height": 25.5
+          }
+        ]
+      }
+    ]
+  }
+}

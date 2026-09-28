@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+.gradle/
+.idea/
+*.apk
+*.aab
+cleantouch/dist-sdk/
+.env
+.env.*
+!.env.example
+.local/
+*.log
+cleantouch/data/*.ndjson
+cleantouch/data/*.tmp
