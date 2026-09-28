@@ -1,4 +1,4 @@
-# CleanTouch Android 0.3.4
+# CleanTouch Android 0.3.5
 
 앱 안의 원형 버튼을 ON 하면 다른 앱 화면을 무음 녹화하고, OFF 하면 저장된 전체 녹화 구간의 상품 분석을 자동으로 시작합니다. 플로팅 창과 SYSTEM_ALERT_WINDOW 권한은 없습니다.
 
@@ -34,8 +34,8 @@ JDK 17, Android SDK 36을 사용합니다. 이 PC의 도구는 프로젝트의 .
 
 ~~~powershell
 cd cleantouch-android
-.\gradlew.bat assembleDebug -PCLEANTOUCH_DEBUG_API_URL=http://192.168.100.103:8790
-.\gradlew.bat testDebugUnitTest lintDebug -PCLEANTOUCH_DEBUG_API_URL=http://192.168.100.103:8790
+.\gradlew.bat assembleDebug -PCLEANTOUCH_DEBUG_API_URL=http://192.168.0.19:8790
+.\gradlew.bat testDebugUnitTest lintDebug -PCLEANTOUCH_DEBUG_API_URL=http://192.168.0.19:8790
 ~~~
 
 출력: app/build/outputs/apk/debug/app-debug.apk. 기존 debug 앱 위에 업데이트 설치할 수 있습니다.

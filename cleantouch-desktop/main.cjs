@@ -4,7 +4,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { pathToFileURL } = require('node:url');
 
-const DEFAULT_API_URL = 'http://192.168.100.103:8790';
+const DEFAULT_API_URL = 'http://192.168.0.19:8790';
 let selectedSourceId = '';
 let apiUrl = DEFAULT_API_URL;
 let mode = 'server';
@@ -31,7 +31,7 @@ function safeShoppingUrl(input) {
 async function readSettings() {
   try {
     const value = JSON.parse(await fs.readFile(settingsPath(), 'utf8'));
-    apiUrl = validApiUrl(value.apiUrl);
+    apiUrl = value.apiUrl === 'http://192.168.100.103:8790' ? DEFAULT_API_URL : validApiUrl(value.apiUrl);
     mode = value.mode === 'local' ? 'local' : 'server';
   } catch { /* Keep the local development address until the user changes it. */ }
 }

@@ -1,6 +1,6 @@
 {
   "name": "cleantouch-desktop",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "description": "CleanTouch Windows screen product finder",
   "main": "main.cjs",
