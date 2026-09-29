@@ -34,14 +34,14 @@ export class GroqVisionProvider implements VisualSearchProvider {
   async search(image: Buffer, detailImages: Buffer[] = []): Promise<SearchResult> {
     if (!this.apiKey) throw new ProviderNotConfiguredError();
 
-    const selectedFocus = detailImages[0];
-    const views = selectedFocus ? [selectedFocus] : [image];
-    if (!selectedFocus) {
+    const hasSelectedFocus = detailImages.length > 0;
+    const views = hasSelectedFocus ? [image, detailImages[0]!] : [image];
+    if (!hasSelectedFocus) {
       const contentZoom = await createZoom(image, 0.82, 0.58, 0.5, 0.43);
       if (contentZoom) views.push(contentZoom);
     }
     const content: GroqContentPart[] = [
-      { type: 'text' as const, text: selectedFocus ? PRODUCT_PROMPT : SCENE_PROMPT },
+      { type: 'text' as const, text: hasSelectedFocus ? PRODUCT_PROMPT : SCENE_PROMPT },
       ...views.slice(0, 2).map((view) => ({
         type: 'image_url' as const,
         image_url: { url: `data:image/jpeg;base64,${view.toString('base64')}` },

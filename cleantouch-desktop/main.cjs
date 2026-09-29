@@ -9,6 +9,8 @@ let selectedSourceId = '';
 let apiUrl = DEFAULT_API_URL;
 let mode = 'server';
 let localKey = '';
+let mainWindow = null;
+let widgetPinned = true;
 
 function settingsPath() { return path.join(app.getPath('userData'), 'settings.json'); }
 function keyPath() { return path.join(app.getPath('userData'), 'gemini-key.bin'); }
@@ -47,12 +49,13 @@ async function readLocalKey() {
   } catch { localKey = ''; }
 }
 
-async function scanLocally(image) {
+async function scanLocally(image, focus) {
   const { GeminiVisionProvider, DEFAULT_GEMINI_MODEL } = await import('./vendor/gemini-provider.js');
   const { ProviderNotConfiguredError, ProviderUnavailableError, VisualSearchError } = await import('./vendor/provider-errors.js');
   const { ProviderRateLimitError } = await import('./vendor/rate-limit.js');
   try {
-    const result = await new GeminiVisionProvider(localKey, DEFAULT_GEMINI_MODEL).search(Buffer.from(image));
+    const primary = focus || image;
+    const result = await new GeminiVisionProvider(localKey, DEFAULT_GEMINI_MODEL).search(Buffer.from(primary), focus ? [Buffer.from(image)] : []);
     return { status: 200, body: result };
   } catch (error) {
     if (error instanceof ProviderRateLimitError) return { status: 429, body: { code: 'PROVIDER_RATE_LIMITED', message: error.message,
@@ -83,6 +86,7 @@ function createWindow() {
       contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false,
     },
   });
+  mainWindow = window;
   window.loadFile(page);
   window.webContents.setWindowOpenHandler(({ url }) => {
     const safe = safeShoppingUrl(url);
@@ -92,6 +96,51 @@ function createWindow() {
   window.webContents.on('will-navigate', (event, destination) => {
     if (destination !== pathToFileURL(page).href) event.preventDefault();
   });
+}
+
+function setWindowLayout(layout) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const { screen } = require('electron');
+  const area = screen.getPrimaryDisplay().workArea;
+  if (layout === 'dashboard') {
+    widgetPinned = false;
+    mainWindow.setAlwaysOnTop(false);
+    mainWindow.setMinimumSize(760, 620);
+    mainWindow.setMaximumSize(7680, 4320);
+    mainWindow.setBounds({
+      x: area.x + Math.max(0, Math.round((area.width - 1100) / 2)),
+      y: area.y + Math.max(0, Math.round((area.height - 820) / 2)), width: 1100, height: 820,
+    }, true);
+    return;
+  }
+  if (layout === 'focus') {
+    widgetPinned = true;
+    mainWindow.setMinimumSize(760, 620);
+    mainWindow.setMaximumSize(7680, 4320);
+    mainWindow.setAlwaysOnTop(true, 'floating');
+    mainWindow.setBounds({
+      x: area.x + Math.max(0, Math.round((area.width - 980) / 2)),
+      y: area.y + Math.max(0, Math.round((area.height - 760) / 2)), width: Math.min(980, area.width), height: Math.min(760, area.height),
+    }, true);
+    return;
+  }
+  if (layout === 'widget') {
+    widgetPinned = true;
+    mainWindow.setMinimumSize(360, 360);
+    mainWindow.setMaximumSize(520, 600);
+    mainWindow.setAlwaysOnTop(true, 'floating');
+    mainWindow.setBounds({
+      x: area.x + Math.max(0, area.width - 420 - 22), y: area.y + 52,
+      width: Math.min(420, area.width), height: Math.min(490, area.height),
+    }, true);
+    return;
+  }
+  if (layout === 'pin-toggle') {
+    widgetPinned = !widgetPinned;
+    mainWindow.setAlwaysOnTop(widgetPinned, widgetPinned ? 'floating' : 'normal');
+    return { pinned: widgetPinned };
+  }
+  throw new Error('알 수 없는 화면 배치입니다.');
 }
 
 app.whenReady().then(async () => {
@@ -114,6 +163,7 @@ app.whenReady().then(async () => {
     if (!sources.some(source => source.id === id)) throw new Error('선택한 창을 찾지 못했어요. 목록을 새로고침해 주세요.');
     selectedSourceId = id;
   });
+  ipcMain.handle('window:layout', (_event, layout) => setWindowLayout(layout));
   ipcMain.handle('settings:get', () => ({ apiUrl, mode, keyConfigured: Boolean(localKey) }));
   ipcMain.handle('settings:set-mode', async (_event, value) => {
     if (!['local', 'server'].includes(value)) throw new Error('지원하지 않는 연결 방식입니다.');
@@ -142,13 +192,17 @@ app.whenReady().then(async () => {
   ipcMain.handle('api:health', () => mode === 'local'
     ? { status: 200, body: { ok: true, providerConfigured: Boolean(localKey), provider: 'gemini', model: 'gemini-3.5-flash-lite', local: true } }
     : fetchApi('/health'));
-  ipcMain.handle('api:scan', async (_event, image) => {
-    if (!(image instanceof Uint8Array) || image.length === 0 || image.length > 8 * 1024 * 1024) {
+  ipcMain.handle('api:scan', async (_event, payload) => {
+    const image = payload instanceof Uint8Array ? payload : payload?.image;
+    const focus = payload instanceof Uint8Array ? undefined : payload?.focus;
+    if (!(image instanceof Uint8Array) || image.length === 0 || image.length > 8 * 1024 * 1024
+      || (focus !== undefined && (!(focus instanceof Uint8Array) || focus.length === 0 || focus.length > 8 * 1024 * 1024))) {
       throw new Error('장면 이미지의 크기가 올바르지 않아요.');
     }
-    if (mode === 'local') return scanLocally(image);
+    if (mode === 'local') return scanLocally(image, focus);
     const form = new FormData();
     form.append('image', new Blob([image], { type: 'image/jpeg' }), 'scene.jpg');
+    if (focus) form.append('focus', new Blob([focus], { type: 'image/jpeg' }), 'product-focus.jpg');
     return fetchApi('/v1/scans', { method: 'POST', body: form });
   });
   ipcMain.handle('links:open', (_event, value) => {

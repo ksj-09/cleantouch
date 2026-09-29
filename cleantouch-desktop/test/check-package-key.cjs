@@ -6,7 +6,7 @@ const line = config.split(/\r?\n/).find(item => item.startsWith('GEMINI_API_KEY=
 let key = line?.slice('GEMINI_API_KEY='.length).trim();
 if (!key) throw new Error('Local key is not configured.');
 if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) key = key.slice(1, -1);
-for (const file of ['CleanTouch 0.1.5.exe', 'CleanTouch Setup 0.1.5.exe']) {
+for (const file of ['CleanTouch 0.1.6.exe', 'CleanTouch Setup 0.1.6.exe']) {
   if (fs.readFileSync(path.resolve(__dirname, '../dist', file)).includes(Buffer.from(key))) {
     throw new Error(`${file} contains the local API key.`);
   }

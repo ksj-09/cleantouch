@@ -62,7 +62,8 @@ export function createApp(provider: VisualSearchProvider) {
         normalizeImage(image.buffer, 1280),
         focus ? normalizeImage(focus.buffer, 1100) : Promise.resolve(undefined),
       ]);
-      const search = await provider.search(normalized, normalizedFocus ? [normalizedFocus] : undefined);
+      // A user-selected crop is the primary image; the full frame only supplies visual context.
+      const search = await provider.search(normalizedFocus ?? normalized, normalizedFocus ? [normalized] : undefined);
       response.status(200).json({
         scanId: requestId,
         queryLabel: search.queryLabel,

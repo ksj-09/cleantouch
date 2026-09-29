@@ -10,19 +10,31 @@
 </head>
 <body>
   <main class="shell">
-    <header class="topbar"><div class="mark">✦</div><div><strong>CleanTouch</strong><small>PC 화면 속 상품 찾기</small></div><span class="badge">Windows</span></header>
-    <section class="hero"><div><p class="eyebrow">WATCH · CAPTURE · DISCOVER</p><h1>유튜브를 보다가<br /><em>마음에 드는 상품을 찾아보세요.</em></h1><p>영상 창을 선택하고 시청하세요. 중지하면 모아 둔 장면을 분석해 쇼핑 검색 링크를 보여줍니다.</p></div><div class="hero-symbol">✦</div></section>
+    <header class="topbar"><div class="mark">✦</div><div><strong>CleanTouch</strong><small>PC 화면 속 상품 찾기</small></div><span class="badge">Windows</span><button id="enter-widget" class="secondary">위젯으로 보기</button></header>
+    <section class="hero"><div><p class="eyebrow">WATCH · CAPTURE · DISCOVER</p><h1>영상을 보다가<br /><em>상품을 바로 찾아보세요.</em></h1><p>영상 창을 선택하고 위젯을 띄우면, 화면을 떠나지 않고 현재 장면이나 직접 고른 상품을 분석할 수 있습니다.</p></div><div class="hero-symbol">✦</div></section>
     <section class="panel settings"><div><h2>분석 방법</h2><p>기본 연결에서는 별도 API 키 없이 분석합니다. 현재 서버 주소는 개발 PC의 같은 네트워크에서만 열립니다.</p></div>
       <div class="mode-row"><button id="mode-server" class="mode-button">기본 연결 · 키 불필요</button><button id="mode-local" class="mode-button">내 Gemini 키 사용</button></div>
       <div id="local-settings" class="server-row"><input id="gemini-key" type="password" spellcheck="false" autocomplete="off" placeholder="Gemini API 키 입력" aria-label="Gemini API 키" /><button id="save-key" class="secondary">키 저장</button><button id="remove-key" class="secondary">키 삭제</button><button id="get-key" class="secondary">키 발급 페이지 ↗</button></div>
       <div id="server-settings" class="server-row" hidden><input id="api-url" type="url" spellcheck="false" aria-label="분석 서버 주소" /><button id="save-api" class="secondary">주소 저장</button></div>
       <div class="server-row"><button id="check-api" class="secondary">연결 확인</button><p id="server-status" class="hint" role="status"></p></div>
     </section>
-    <section class="panel"><div class="section-heading"><div><h2>캡처할 창 선택</h2><p>유튜브를 재생하는 브라우저 창이나 화면을 고르세요. 소리는 녹음하지 않습니다.</p></div><button id="refresh-sources" class="secondary">창 목록 새로고침</button></div><div id="sources" class="sources"></div></section>
-    <section class="panel control"><div><h2 id="phase-title">준비됐어요</h2><p id="phase-detail">창을 고른 뒤 시작하세요. 5초 간격으로 장면을 모읍니다.</p><p id="progress" class="progress"></p></div><div class="actions"><button id="start" class="primary" disabled>화면 살펴보기 시작</button><button id="stop" class="danger" hidden>중지하고 분석</button><button id="resume" class="primary" hidden>분석 이어서 하기</button><button id="reset" class="secondary" hidden>새로 시작</button></div></section>
-    <section class="panel results"><div class="section-heading"><div><h2>찾은 상품 <span id="product-count">0</span></h2><p>이미지 검색이 설정돼 있으면 일치하는 웹페이지를 먼저 보여줍니다. 없으면 문자 검색을 이용할 수 있습니다.</p></div></div><div id="products" class="products"><p class="empty">아직 찾은 상품이 없어요.</p></div></section>
-    <footer>장면은 분석하는 동안 이 PC 메모리에만 보관되며 앱을 종료하면 사라집니다. Google Lens를 선택하면 해당 상품 이미지를 다운로드 폴더에 저장합니다. 내 Gemini 키는 Windows 계정으로 암호화해 저장합니다. 판매처와 가격은 검색 결과에서 확인해 주세요.</footer>
+    <section class="panel"><div class="section-heading"><div><h2>캡처할 창 선택</h2><p>유튜브 브라우저 창을 선택하면 위젯이 캡처에 섞이지 않습니다. 전체 화면을 고르면 위젯도 보일 수 있어요. 소리는 녹음하지 않습니다.</p></div><button id="refresh-sources" class="secondary">창 목록 새로고침</button></div><div id="sources" class="sources"></div></section>
+    <section class="panel control"><div><h2 id="phase-title">준비됐어요</h2><p id="phase-detail">영상 창을 고르고, 캡처를 시작할 때 영상의 현재 시각을 입력하세요.</p><p id="progress" class="progress"></p><label class="time-offset">캡처 시작 시 영상 위치 <input id="start-time" type="text" value="00:00" inputmode="numeric" aria-label="캡처 시작 시 영상 위치" /> <span>분:초</span></label></div><div class="actions"><button id="start" class="primary" disabled>화면 살펴보기 시작</button><button id="stop" class="danger" hidden>중지하고 분석</button><button id="resume" class="primary" hidden>분석 이어서 하기</button><button id="reset" class="secondary" hidden>새로 시작</button></div></section>
+    <section class="panel results"><div class="section-heading"><div><h2>찾은 상품 <span id="product-count">0</span></h2><p>상품 이름을 검색하면 등장한 시각과 장면을 좁혀 볼 수 있습니다. 시각은 캡처 시작 위치와 경과 시간을 기준으로 계산합니다.</p></div><input id="product-filter" class="product-filter" type="search" placeholder="상품명 검색" aria-label="찾은 상품 검색" /></div><div id="products" class="products"><p class="empty">아직 찾은 상품이 없어요.</p></div></section>
+    <footer>캡처 장면은 상품 분석 요청 때 선택한 Gemini 서버로 전송되며, 장면 목록은 앱을 종료하면 사라집니다. Google Lens를 선택하면 상품 이미지를 다운로드 폴더에 저장합니다. 내 Gemini 키는 Windows 계정으로 암호화해 저장합니다. 판매처와 가격은 검색 결과에서 확인해 주세요.</footer>
   </main>
+  <section id="widget-panel" class="widget-panel" hidden>
+    <header class="widget-header"><div class="mark">✦</div><div><strong>CleanTouch</strong><small id="widget-time">00:00</small></div><button id="pin-widget" class="widget-icon" aria-label="항상 위에 고정">📌</button></header>
+    <div class="widget-preview" id="widget-preview"><span>영상 캡처를 시작하면<br />현재 장면이 여기에 보여요.</span><img id="widget-image" alt="현재 영상 장면" hidden /></div>
+    <p id="widget-status" class="widget-status">먼저 전체 화면에서 영상 창을 선택하고 캡처를 시작하세요.</p>
+    <div class="widget-actions"><button id="widget-analyze" class="primary" disabled>이 장면 분석</button><button id="widget-pick" class="secondary" disabled>상품 찍기</button></div>
+    <button id="widget-stop" class="widget-stop" disabled>캡처를 마치고 모아둔 장면 분석</button>
+    <div class="widget-footer"><button id="widget-dashboard" class="widget-link">분석 결과 크게 보기</button><button id="widget-setup" class="widget-link">시간 설정</button></div>
+    <div id="widget-time-editor" class="widget-time-editor" hidden><input id="widget-time-input" type="text" value="00:00" aria-label="현재 영상 위치 분:초" /><button id="apply-widget-time" class="secondary">시각 맞추기</button></div>
+  </section>
+  <section id="focus-picker" class="focus-picker" hidden aria-modal="true" role="dialog" aria-labelledby="focus-title">
+    <div class="focus-dialog"><div class="focus-heading"><div><h2 id="focus-title">영상에서 상품을 선택하세요</h2><p>상품을 누르거나 드래그해 영역을 지정하면 그 부분을 중심으로 분석합니다.</p></div><button id="cancel-focus" class="secondary">취소</button></div><div id="focus-viewport" class="focus-viewport"><img id="focus-image" alt="상품 영역 선택용 현재 영상 화면" /><canvas id="focus-canvas"></canvas></div><div class="focus-actions"><span id="focus-hint">상품을 한 번 누르거나 주위를 드래그하세요.</span><button id="submit-focus" class="primary" disabled>선택한 상품 분석</button></div></div>
+  </section>
   <video id="capture-video" muted playsinline hidden></video>
 </body>
 </html>
