@@ -2,14 +2,37 @@ node_modules/
 dist/
 build/
 .gradle/
+.kotlin/
 .idea/
 *.apk
 *.aab
 cleantouch/dist-sdk/
+cleantouch-desktop/vendor/tasks-vision/
 .env
 .env.*
 !.env.example
 .local/
+.netlify/
 *.log
 cleantouch/data/*.ndjson
 cleantouch/data/*.tmp
+
+# Local Netlify folder
+.netlify
+cleantouch-desktop/dist-product/
+cleantouch-desktop/dist-search/
+cleantouch-desktop/dist-search-final/
+
+cleantouch-desktop/dist-chat-modes/
+
+cleantouch-desktop/dist-stability/
+
+cleantouch-desktop/dist-import/
+
+# Generated releases and local verification data
+cleantouch-desktop/dist-*/
+artifacts/
+*.jks
+*.keystore
+*.p12
+*.pfx

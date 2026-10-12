@@ -1,2 +1,5 @@
 -keep class com.google.mlkit.** { *; }
 -dontwarn com.google.mlkit.**
+-keep class com.google.mediapipe.** { *; }
+-dontwarn com.google.mediapipe.**
+-keep class org.opencv.** { *; }

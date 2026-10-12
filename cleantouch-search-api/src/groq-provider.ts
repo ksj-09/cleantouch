@@ -35,7 +35,7 @@ export class GroqVisionProvider implements VisualSearchProvider {
     if (!this.apiKey) throw new ProviderNotConfiguredError();
 
     const hasSelectedFocus = detailImages.length > 0;
-    const views = hasSelectedFocus ? [image, detailImages[0]!] : [image];
+    const views = hasSelectedFocus ? [detailImages[0]!] : [image];
     if (!hasSelectedFocus) {
       const contentZoom = await createZoom(image, 0.82, 0.58, 0.5, 0.43);
       if (contentZoom) views.push(contentZoom);

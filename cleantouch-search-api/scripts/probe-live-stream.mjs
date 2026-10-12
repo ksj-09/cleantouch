@@ -1,0 +1,9 @@
+import fs from 'node:fs/promises';
+import {createLiveToken} from '../dist/live-token.js';
+const auth=await createLiveToken();
+const frames=await Promise.all(['../../artifacts/verification/live-clean-video.jpg','../../cleantouch-android/app/src/androidTest/assets/bag.png'].map(async path=>({data:(await fs.readFile(new URL(path,import.meta.url))).toString('base64'),mimeType:path.endsWith('.png')?'image/png':'image/jpeg'})));
+const socket=new WebSocket('wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token='+encodeURIComponent(auth.token));let text='',ready=false;
+const timeout=setTimeout(()=>{console.log(JSON.stringify({ready,responseReceived:!!text,timeout:true}));socket.close();},35000);
+socket.onopen=()=>socket.send(JSON.stringify({setup:auth.setup}));
+socket.onmessage=async event=>{const data=JSON.parse(typeof event.data==='string'?event.data:await event.data.text());if(data.setupComplete){ready=true;socket.send(JSON.stringify({realtimeInput:{video:frames[0]}}));setTimeout(()=>{socket.send(JSON.stringify({realtimeInput:{video:frames[1]}}));const repeat=setInterval(()=>socket.send(JSON.stringify({realtimeInput:{video:frames[1]}})),1000);setTimeout(()=>{clearInterval(repeat);socket.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text:'지금 마지막으로 공유한 화면에서 사람이 가지고 있는 상품을 짧게 말해줘. 이전 화면이 아닌 마지막 화면을 봐줘.'}]}],turnComplete:true}}));},2500);},1500);}if(data.serverContent?.outputTranscription?.text)text+=data.serverContent.outputTranscription.text;if(data.serverContent?.turnComplete){clearTimeout(timeout);console.log(JSON.stringify({ready,twoChangingFrames:true,answer:text}));socket.close();}};
+socket.onclose=event=>{clearTimeout(timeout);console.log(JSON.stringify({closed:event.code,reason:event.reason.replace(auth.token,'[redacted]').slice(0,200)}));};

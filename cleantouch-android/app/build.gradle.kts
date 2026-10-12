@@ -12,17 +12,26 @@ android {
         applicationId = "kr.cleantouch.scan"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
-        versionName = "0.3.5"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        versionCode = 22
+        versionName = "0.4.8"
+        val chatUrl = providers.gradleProperty("CLEANTOUCH_CHAT_URL").orElse("https://cleantouch-place-ai-20261006.netlify.app")
+        buildConfigField("String", "PLACE_CHAT_URL", "\"${chatUrl.get()}\"")
+        ndk {
+            abiFilters += if (providers.gradleProperty("CLEANTOUCH_EMULATOR").isPresent) listOf("x86_64") else listOf("arm64-v8a", "armeabi-v7a")
+        }
 
     }
 
     buildTypes {
         debug {
+            isDebuggable = providers.gradleProperty("CLEANTOUCH_TESTING").isPresent
+            isMinifyEnabled = !providers.gradleProperty("CLEANTOUCH_TESTING").isPresent
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
             val debugApi = providers.gradleProperty("CLEANTOUCH_DEBUG_API_URL").orElse("http://10.0.2.2:8790")
             buildConfigField("String", "SCAN_API_URL", "\"${debugApi.get()}\"")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         release {
             isMinifyEnabled = true
@@ -60,9 +69,15 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.11.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
+    implementation("com.google.mediapipe:tasks-vision:1.0.0")
+    implementation("org.opencv:opencv:4.13.0")
+    implementation("com.google.mlkit:text-recognition-korean:16.0.1")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
 }

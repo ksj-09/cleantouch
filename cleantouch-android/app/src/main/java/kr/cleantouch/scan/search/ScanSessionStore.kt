@@ -8,15 +8,19 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.util.UUID
+import kr.cleantouch.scan.capture.VideoStamp
 
-enum class ScanPhase { IDLE, RECORDING, ANALYZING, COMPLETE, INTERRUPTED }
-data class RecordedProduct(val id: String, val label: String, val thumbnail: String, val firstSeenMs: Long, val matches: List<ProductMatch>)
+enum class ScanPhase { IDLE, RECORDING, PAUSED, ANALYZING, COMPLETE, INTERRUPTED }
+data class CapturedScene(val timeMs: Long, val path: String)
+data class RecordedProduct(val id: String, val label: String, val thumbnail: String, val firstSeenMs: Long, val matches: List<ProductMatch>, val signature: String = "", val sightings: List<Long> = listOf(firstSeenMs))
 data class ScanSnapshot(
     val id: String = "", val phase: ScanPhase = ScanPhase.IDLE,
     val directory: String = "", val startedAt: Long = 0, val durationMs: Long = 0,
     val completedFrames: Set<Long> = emptySet(), val totalFrames: Int = 0,
     val products: List<RecordedProduct> = emptyList(), val message: String = "",
     val retryAtMillis: Long = 0,
+    val scenes: List<CapturedScene> = emptyList(), val captureActive: Boolean = false,
+    val timeMarks: Map<Long, VideoStamp> = emptyMap(),
 ) {
     val recording get() = File(directory, "recording.mp4")
     val busy get() = phase == ScanPhase.RECORDING || phase == ScanPhase.ANALYZING
@@ -36,7 +40,8 @@ object ScanSessionStore {
         val id = appContext.getSharedPreferences("scan", 0).getString("latest", null) ?: return
         val file = File(appContext.filesDir, "sessions/$id/session.json")
         val restored = runCatching { decode(JSONObject(AtomicFile(file).openRead().bufferedReader().use { it.readText() })) }.getOrNull() ?: return
-        mutable.value = if (restored.busy) restored.copy(phase = ScanPhase.INTERRUPTED, message = "작업이 중단됐어요. 저장된 녹화에서 분석을 다시 이어갈 수 있어요.") else restored
+        mutable.value = restored.copy(captureActive = false, phase = if (restored.busy) ScanPhase.INTERRUPTED else restored.phase,
+            message = if (restored.busy) "스캔이 중단됐어요. 모아둔 장면은 보관되어 있어요." else restored.message)
     }
 
     @Synchronized fun begin(): ScanSnapshot {
@@ -66,8 +71,11 @@ object ScanSessionStore {
         put("startedAt", value.startedAt); put("durationMs", value.durationMs); put("totalFrames", value.totalFrames)
         put("completedFrames", JSONArray(value.completedFrames.toList())); put("message", value.message)
         put("retryAtMillis", value.retryAtMillis)
+        put("timeMarks", JSONObject().apply { value.timeMarks.forEach { (time, stamp) -> put(time.toString(), JSONObject().put("key", stamp.key).put("number", stamp.number).put("positionMs", stamp.positionMs).put("estimated", stamp.estimated)) } })
+        put("scenes", JSONArray(value.scenes.map { JSONObject().put("timeMs", it.timeMs).put("path", it.path) }))
         put("products", JSONArray(value.products.map { product -> JSONObject().apply {
             put("id", product.id); put("label", product.label); put("thumbnail", product.thumbnail); put("firstSeenMs", product.firstSeenMs)
+            put("signature", product.signature); put("sightings", JSONArray(product.sightings))
             put("matches", JSONArray(product.matches.map(::matchJson)))
         } }))
     }
@@ -76,10 +84,13 @@ object ScanSessionStore {
         id = json.getString("id"), phase = ScanPhase.valueOf(json.getString("phase")), directory = json.getString("directory"),
         startedAt = json.optLong("startedAt"), durationMs = json.optLong("durationMs"), totalFrames = json.optInt("totalFrames"), message = json.optString("message"),
         retryAtMillis = json.optLong("retryAtMillis"),
+        timeMarks = json.optJSONObject("timeMarks")?.let { marks -> marks.keys().asSequence().mapNotNull { key -> key.toLongOrNull()?.let { time -> val stamp = marks.getJSONObject(key); time to VideoStamp(stamp.getString("key"), stamp.getInt("number"), stamp.getLong("positionMs"), stamp.optBoolean("estimated", true)) } }.toMap() }.orEmpty(),
+        scenes = json.optJSONArray("scenes")?.let { a -> (0 until a.length()).map { val s = a.getJSONObject(it); CapturedScene(s.getLong("timeMs"), s.getString("path")) } }.orEmpty(),
         completedFrames = json.getJSONArray("completedFrames").let { array -> (0 until array.length()).map { array.getLong(it) }.toSet() },
         products = json.getJSONArray("products").let { array -> (0 until array.length()).map { index ->
             val item = array.getJSONObject(index)
-            RecordedProduct(item.getString("id"), item.getString("label"), item.getString("thumbnail"), item.getLong("firstSeenMs"), parseMatches(item.optJSONArray("matches")))
+            RecordedProduct(item.getString("id"), item.getString("label"), item.getString("thumbnail"), item.getLong("firstSeenMs"), parseMatches(item.optJSONArray("matches")), item.optString("signature"),
+                item.optJSONArray("sightings")?.let { a -> (0 until a.length()).map { a.getLong(it) } } ?: listOf(item.getLong("firstSeenMs")))
         } },
     )
 }

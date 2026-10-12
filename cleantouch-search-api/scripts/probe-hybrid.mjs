@@ -1,0 +1,4 @@
+import sharp from 'sharp';
+const images=await Promise.all(['../artifacts/verification/live-clean-video.jpg','../cleantouch-android/app/src/androidTest/assets/bag.png'].map(async file=>(await sharp(file).resize({width:768,height:768,fit:'inside'}).jpeg({quality:72}).toBuffer()).toString('base64')));
+const response=await fetch('https://cleantouch-place-ai-20261006.netlify.app/v1/place-chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:images.at(-1),images,messages:[{role:'user',text:'마지막 사진에서 들고 있는 상품을 간단히 설명해줘. 직전 사진과 구분해줘.'}]}),signal:AbortSignal.timeout(55000)});
+const data=await response.json();console.log(JSON.stringify({status:response.status,frames:images.length,answer:data.answer||data.message,retention:data.retention}));if(!response.ok)process.exitCode=1;

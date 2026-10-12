@@ -3,38 +3,69 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; media-src blob:; script-src 'self'; style-src 'self'; connect-src 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; media-src blob:; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self'; connect-src 'self' wss://generativelanguage.googleapis.com" />
   <title>CleanTouch</title>
   <link rel="stylesheet" href="styles.css" />
+  <script defer src="product-identity.js"></script>
+  <script defer src="candidate-policy.js"></script>
+  <script defer src="object-regions.js"></script>
+  <script defer src="share-permission.js"></script>
+  <script defer src="ai-categories.js"></script>
+  <script defer src="glow-regions.js"></script>
+  <script defer src="scene-capture.js"></script>
+  <script defer src="watch-timeline.js"></script>
+  <script defer src="vendor/screen-ocr/tesseract.min.js"></script>
+  <script defer src="screen-watch.js"></script>
+  <script defer src="vendor/tasks-vision/vision_bundle.js"></script>
   <script defer src="renderer.js"></script>
+  <script defer src="image-encoding.js"></script>
+  <script defer src="update-ui.js"></script>
+  <script defer src="recent-scenes.js"></script>
+  <script defer src="live-screen.js"></script>
+  <script defer src="shopping-cards.js"></script>
+  <script defer src="conversation-context.js"></script><script defer src="chat-title.js"></script><script defer src="chat-memory.js"></script>
+  <script defer src="place-chat.js"></script>
+  <script defer src="tutorial.js"></script>
 </head>
 <body>
   <main class="shell">
-    <header class="topbar"><div class="mark">✦</div><div><strong>CleanTouch</strong><small>PC 화면 속 상품 찾기</small></div><span class="badge">Windows</span><button id="enter-widget" class="secondary">위젯으로 보기</button></header>
-    <section class="hero"><div><p class="eyebrow">WATCH · CAPTURE · DISCOVER</p><h1>영상을 보다가<br /><em>상품을 바로 찾아보세요.</em></h1><p>영상 창을 선택하고 위젯을 띄우면, 화면을 떠나지 않고 현재 장면이나 직접 고른 상품을 분석할 수 있습니다.</p></div><div class="hero-symbol">✦</div></section>
-    <section class="panel settings"><div><h2>분석 방법</h2><p>기본 연결에서는 별도 API 키 없이 분석합니다. 현재 서버 주소는 개발 PC의 같은 네트워크에서만 열립니다.</p></div>
-      <div class="mode-row"><button id="mode-server" class="mode-button">기본 연결 · 키 불필요</button><button id="mode-local" class="mode-button">내 Gemini 키 사용</button></div>
-      <div id="local-settings" class="server-row"><input id="gemini-key" type="password" spellcheck="false" autocomplete="off" placeholder="Gemini API 키 입력" aria-label="Gemini API 키" /><button id="save-key" class="secondary">키 저장</button><button id="remove-key" class="secondary">키 삭제</button><button id="get-key" class="secondary">키 발급 페이지 ↗</button></div>
-      <div id="server-settings" class="server-row" hidden><input id="api-url" type="url" spellcheck="false" aria-label="분석 서버 주소" /><button id="save-api" class="secondary">주소 저장</button></div>
-      <div class="server-row"><button id="check-api" class="secondary">연결 확인</button><p id="server-status" class="hint" role="status"></p></div>
-    </section>
-    <section class="panel"><div class="section-heading"><div><h2>캡처할 창 선택</h2><p>유튜브 브라우저 창을 선택하면 위젯이 캡처에 섞이지 않습니다. 전체 화면을 고르면 위젯도 보일 수 있어요. 소리는 녹음하지 않습니다.</p></div><button id="refresh-sources" class="secondary">창 목록 새로고침</button></div><div id="sources" class="sources"></div></section>
-    <section class="panel control"><div><h2 id="phase-title">준비됐어요</h2><p id="phase-detail">영상 창을 고르고, 캡처를 시작할 때 영상의 현재 시각을 입력하세요.</p><p id="progress" class="progress"></p><label class="time-offset">캡처 시작 시 영상 위치 <input id="start-time" type="text" value="00:00" inputmode="numeric" aria-label="캡처 시작 시 영상 위치" /> <span>분:초</span></label></div><div class="actions"><button id="start" class="primary" disabled>화면 살펴보기 시작</button><button id="stop" class="danger" hidden>중지하고 분석</button><button id="resume" class="primary" hidden>분석 이어서 하기</button><button id="reset" class="secondary" hidden>새로 시작</button></div></section>
-    <section class="panel results"><div class="section-heading"><div><h2>찾은 상품 <span id="product-count">0</span></h2><p>상품 이름을 검색하면 등장한 시각과 장면을 좁혀 볼 수 있습니다. 시각은 캡처 시작 위치와 경과 시간을 기준으로 계산합니다.</p></div><input id="product-filter" class="product-filter" type="search" placeholder="상품명 검색" aria-label="찾은 상품 검색" /></div><div id="products" class="products"><p class="empty">아직 찾은 상품이 없어요.</p></div></section>
-    <footer>캡처 장면은 상품 분석 요청 때 선택한 Gemini 서버로 전송되며, 장면 목록은 앱을 종료하면 사라집니다. Google Lens를 선택하면 상품 이미지를 다운로드 폴더에 저장합니다. 내 Gemini 키는 Windows 계정으로 암호화해 저장합니다. 판매처와 가격은 검색 결과에서 확인해 주세요.</footer>
+    <header class="topbar"><div class="mark"><svg class="brand-glyph" viewBox="0 0 32 32" aria-hidden="true"><path d="M6.5 12h18l-1.5 15h-15L6.5 12Z"/><path d="M11 12V9a4 4 0 0 1 8 0v3"/><path class="brand-spark" d="m24 4 1.2 3.1L28 8.2l-2.8 1.1L24 12l-1.1-2.7L20 8.2l2.9-1.1L24 4Z"/></svg></div><div><strong>CleanTouch</strong><small>영상 속 상품을 쉽게 찾아요</small></div><button id="theme-toggle" class="theme-toggle secondary" type="button" aria-label="어두운 테마로 전환" title="어두운 테마"><svg class="theme-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l-1.42 1.42m11.3-11.3 1.42-1.42"/></svg><svg class="theme-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.2A8.7 8.7 0 0 1 8.8 3.8 8.8 8.8 0 1 0 20.2 15.2Z"/></svg></button><button id="enter-widget" class="secondary">위젯으로 보기</button></header>
+    <section class="hero"><div><p class="eyebrow">마음에 드는 순간을 놓치지 않도록</p><h1>영상 속 그 상품,<br /><em>여기서 찾아보세요.</em></h1><p>영상을 열고 화면 살펴보기를 시작하세요. 작은 위젯에서 상품을 찾고, AI에게 물어보고, 쇼핑 검색까지 이어갈 수 있어요.</p></div><div class="hero-symbol" aria-hidden="true">✦</div></section>
+    <section class="panel"><p id="server-status" class="hint" role="status"></p><p id="video-time-status" class="hint" role="status">화면을 시작하면 영상 전환과 재생 상태를 자동 확인합니다.</p></section>
+    <section class="panel control"><div><h2 id="phase-title">영상을 열고 시작하세요</h2><p id="phase-detail">Edge나 Chrome에서 보는 영상의 장면을 모읍니다.</p><p id="progress" class="progress" role="status"></p></div><div class="actions"><button id="start" class="primary" disabled>화면 살펴보기 시작</button><button id="current-screen" class="primary" disabled>지금 보이는 상품 찾기</button><button id="analyze-all" class="secondary" disabled title="장면 수집을 잠시 멈추고 지금까지 모은 장면을 분석합니다">모두 분석</button><button id="scan-resume" class="primary" hidden>수집 재개</button><button id="analysis-cancel" class="danger" hidden>분석 중단</button><button id="stop" class="secondary" hidden>수집 일시정지</button><button id="resume" class="primary" hidden>분석 이어서 하기</button><button id="reset" class="secondary" hidden>새로 시작</button></div></section>
+    <section class="panel collection-panel"><p id="collection-help"></p><p id="collection-status" role="status"></p></section><section class="panel results"><div class="section-heading"><div><h2>찾은 상품 <span id="product-count">0</span></h2><p>이름을 검색하거나 발견 시점을 눌러 해당 장면을 다시 확인하세요.</p></div><input id="product-filter" class="product-filter" type="search" placeholder="상품명 검색" aria-label="찾은 상품 검색" /></div><div id="products" class="products"><p class="empty">아직 찾은 상품이 없어요.</p></div></section>
+    <details class="privacy-note"><summary>화면 공유와 개인정보 안내</summary><p>수집한 장면은 기기에 임시 보관됩니다. AI 분석을 실행하면 선택하거나 모은 장면이 Gemini로, Lens 검색을 실행하면 선택한 이미지가 Google로 전송됩니다. AI의 화면 함께 보기를 켜면 영상 영역의 장면을 Gemini에 계속 보냅니다. 공유 종료 또는 대화 닫기를 누르면 AI 전송이 멈춥니다. 소리와 전체 영상 파일은 전송하지 않으며, 앱을 종료하면 임시 장면은 삭제됩니다. 대화와 선택한 상품 사진은 이 기기에 최근 40개 대화까지 저장되며 대화 목록에서 삭제할 수 있습니다. 상품명과 장소는 AI의 추정이므로 구매 전 판매 페이지에서 확인하세요.</p></details>
   </main>
   <section id="widget-panel" class="widget-panel" hidden>
-    <header class="widget-header"><div class="mark">✦</div><div><strong>CleanTouch</strong><small id="widget-time">00:00</small></div><button id="pin-widget" class="widget-icon" aria-label="항상 위에 고정">📌</button></header>
-    <div class="widget-preview" id="widget-preview"><span>영상 캡처를 시작하면<br />현재 장면이 여기에 보여요.</span><img id="widget-image" alt="현재 영상 장면" hidden /></div>
-    <p id="widget-status" class="widget-status">먼저 전체 화면에서 영상 창을 선택하고 캡처를 시작하세요.</p>
-    <div class="widget-actions"><button id="widget-analyze" class="primary" disabled>이 장면 분석</button><button id="widget-pick" class="secondary" disabled>상품 찍기</button></div>
-    <button id="widget-stop" class="widget-stop" disabled>캡처를 마치고 모아둔 장면 분석</button>
-    <div class="widget-footer"><button id="widget-dashboard" class="widget-link">분석 결과 크게 보기</button><button id="widget-setup" class="widget-link">시간 설정</button></div>
-    <div id="widget-time-editor" class="widget-time-editor" hidden><input id="widget-time-input" type="text" value="00:00" aria-label="현재 영상 위치 분:초" /><button id="apply-widget-time" class="secondary">시각 맞추기</button></div>
+    <div data-updates class="update-widget"></div>
+    <header class="widget-header"><div class="mark"><svg class="brand-glyph" viewBox="0 0 32 32" aria-hidden="true"><path d="M6.5 12h18l-1.5 15h-15L6.5 12Z"/><path d="M11 12V9a4 4 0 0 1 8 0v3"/><path class="brand-spark" d="m24 4 1.2 3.1L28 8.2l-2.8 1.1L24 12l-1.1-2.7L20 8.2l2.9-1.1L24 4Z"/></svg></div><div class="widget-brand"><strong>CleanTouch</strong><small id="widget-time" title="영상 재생 시간 · ≈는 시청 추정 시간">영상 시간 확인 안 됨</small></div><button id="theme-toggle-widget" class="widget-icon theme-toggle" type="button" aria-label="어두운 테마로 전환" title="어두운 테마"><svg class="theme-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg><svg class="theme-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.2A8.7 8.7 0 0 1 8.8 3.8 8.8 8.8 0 1 0 20.2 15.2Z"/></svg></button><button id="collapse-widget" class="widget-icon" aria-label="위젯 접기" title="영상을 볼 때 작게 접기">−</button><button id="pin-widget" class="widget-icon" aria-label="항상 위에 고정"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m16 3 5 5-3 1-4 4 1 4-2 2-3-5-4 4-1-1 4-4-5-3 2-2 4 1 4-4-1-2Z"/></svg></button></header>
+    <div class="widget-preview" id="widget-preview"><span>영상 캡처를 시작하면<br />현재 장면이 여기에 보여요.</span><canvas id="capture-preview" aria-label="실시간 영상 미리보기" hidden></canvas><video id="capture-video" muted playsinline autoplay hidden></video></div>
+    <p id="widget-status" class="widget-status">화면 살펴보기를 시작하면 영상 장면을 모읍니다.</p>
+    <div class="widget-actions"><button id="widget-start" class="primary">화면 살펴보기 시작</button><button id="widget-analyze" class="primary" disabled>지금 보이는 상품 찾기</button></div>
+    <div class="widget-tools"><button id="widget-place" class="secondary">AI에게 물어보기</button><button id="widget-all" class="secondary" title="장면 수집을 잠시 멈추고 지금까지 모은 장면을 분석합니다">모두 분석</button><button id="widget-scan-resume" class="primary" hidden>수집 재개</button></div><button id="widget-analysis-cancel" class="danger" hidden>분석 중단</button><button id="widget-stop" class="widget-stop" disabled>수집 일시정지</button>
+    <details id="widget-results"><summary>찾은 상품 <span id="widget-result-count">0</span></summary><div id="widget-product-list"></div></details>
+    <div class="widget-onboarding" aria-label="사용 순서"><span><b>1</b> 화면 시작</span><i>›</i><span><b>2</b> 영상 보기</span><i>›</i><span><b>3</b> 상품 터치</span></div>
+    <div class="widget-footer"><button id="widget-dashboard" class="widget-link">전체 결과 보기</button></div>
   </section>
   <section id="focus-picker" class="focus-picker" hidden aria-modal="true" role="dialog" aria-labelledby="focus-title">
-    <div class="focus-dialog"><div class="focus-heading"><div><h2 id="focus-title">영상에서 상품을 선택하세요</h2><p>상품을 누르거나 드래그해 영역을 지정하면 그 부분을 중심으로 분석합니다.</p></div><button id="cancel-focus" class="secondary">취소</button></div><div id="focus-viewport" class="focus-viewport"><img id="focus-image" alt="상품 영역 선택용 현재 영상 화면" /><canvas id="focus-canvas"></canvas></div><div class="focus-actions"><span id="focus-hint">상품을 한 번 누르거나 주위를 드래그하세요.</span><button id="submit-focus" class="primary" disabled>선택한 상품 분석</button></div></div>
+    <div class="focus-dialog"><div class="focus-heading"><div><h2 id="focus-title">찾을 상품을 선택하세요</h2><p>상품을 누르거나 드래그해 표시하세요. 윤곽을 확인한 뒤 AI 분석이나 Lens 이미지 검색을 선택할 수 있어요.</p></div><button id="cancel-focus" class="secondary">취소</button></div><div id="focus-viewport" class="focus-viewport"><img id="focus-image" alt="상품 영역 선택용 현재 영상 화면" /><canvas id="focus-canvas"></canvas></div><div class="focus-actions"><span id="focus-hint">상품을 누르거나 드래그하세요.</span><button id="include-focus" class="secondary" disabled>빠진 부분 더하기</button><button id="refine-focus" class="secondary" disabled>잘못 잡힌 부분 빼기</button><button id="submit-focus" class="primary" disabled>AI로 상품 분석</button><button id="focus-lens" class="secondary" disabled>Lens 이미지 검색</button></div></div>
   </section>
-  <video id="capture-video" muted playsinline hidden></video>
+
+  <button id="ai-launcher" class="ai-launcher" aria-label="AI 챗봇 열기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 2.1 7.1L21 12l-6.9 2.1L12 21l-2.1-6.9L3 12l6.9-2.9L12 2Z"/></svg><span>AI에게 물어보기</span></button>
+  <section id="place-chat" class="place-chat" hidden role="dialog" aria-label="CleanTouch AI 상품·장소 분석">
+    <header><button id="chat-history-toggle" class="secondary chat-close" aria-label="이전 대화 보기" aria-expanded="false" title="이전 대화"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h10M4 19h16"/></svg></button><strong><span class="chat-brand-mark" aria-hidden="true">✦</span> CleanTouch AI</strong><div class="chat-header-actions"><button id="chat-reset" class="secondary" type="button">새 대화</button><button id="chat-close" class="secondary chat-close" type="button" aria-label="AI 대화 닫기 · 화면 공유 종료" title="대화 닫기 · 화면 공유 종료"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></div></header>
+    <p id="chat-conversation-title" class="chat-conversation-title">새 대화</p>
+    <aside id="chat-history" class="chat-history" hidden aria-label="저장된 대화"><header><strong>내 대화</strong><button id="chat-history-close" class="secondary" aria-label="대화 목록 닫기">닫기</button></header><button id="chat-history-new" class="primary">＋ 새 대화</button><div id="chat-history-list"></div><p id="chat-memory-status" role="status">이 기기에 대화를 저장합니다.</p></aside>
+    <div class="chat-caption"><span class="chat-connection" aria-hidden="true"></span><details class="chat-sharing-info"><summary>공유 안내</summary><p>화면 함께 보기를 켜면 영상 영역을 Gemini에 초당 최대 1장 보냅니다. 빠른 장면은 놓칠 수 있어요. 소리와 실제 위치 정보는 전송하지 않습니다. 공유 종료 또는 대화 닫기를 누르면 전송이 멈춥니다.</p></details></div>
+    <div class="chat-tools chat-main-tools"><button id="chat-place" class="primary">화면 함께 보기</button><button id="chat-live-stop" class="danger" hidden>화면 공유 종료</button><button id="chat-product" class="secondary">상품 선택 · 분석</button></div>
+    <div class="chat-tools chat-source-tools"><button id="chat-upload" class="secondary">사진 업로드</button><select id="chat-source" aria-label="AI에 전송할 내용"><option value="none">채팅만 · 화면 전송 없음</option><option value="screen">영상 화면 공유</option><option value="import" disabled>선택한 사진</option></select></div>
+    <div id="chat-import-preview" hidden><select id="chat-import-list" aria-label="가져온 사진 선택"></select><img id="chat-import-image" alt="선택한 분석 사진" /><button id="chat-pick-import" class="secondary">사진에서 상품 영역 선택</button></div>
+    <div id="chat-messages" class="chat-messages" role="log" aria-live="polite"></div>
+    <p id="chat-error" class="chat-error" role="status"></p>
+    <button id="chat-retry" class="secondary" hidden>다시 시도</button>
+    <form id="chat-form"><input id="chat-input" placeholder="이 가방 찾아줘, 여기는 어디야?" aria-label="AI에게 질문" maxlength="1500" autocomplete="off" /><button id="chat-send" class="primary" type="submit">전송</button></form>
+  </section>
+  <dialog id="screen-permission" class="permission-dialog" aria-labelledby="permission-title" aria-describedby="permission-description"><div class="permission-mark" aria-hidden="true">▣</div><p class="eyebrow">화면은 허용한 뒤에만</p><h2 id="permission-title">영상 화면을 살펴볼까요?</h2><p id="permission-description"></p><ul><li id="permission-scope"></li><li>마이크와 소리는 사용하지 않습니다.</li><li id="permission-stop-info"></li></ul><div class="permission-actions"><button id="permission-deny" class="secondary">취소</button><button id="permission-allow" class="primary">허용하고 시작</button></div></dialog>
+  <dialog id="tutorial" class="tutorial-dialog" aria-labelledby="tutorial-title"><header><div><p class="eyebrow">CLEAN TOUCH · 시작 가이드</p><h2 id="tutorial-title">처음부터 차근차근</h2></div><button id="guide-close" class="secondary" aria-label="사용 가이드 닫기">닫기</button></header><div id="guide-welcome"><div class="guide-intro"><span aria-hidden="true">✦</span><h3>처음이라면,<br>여기서 가볍게 시작해요.</h3><p>AI와 대화하고, 마음에 드는 상품을 찾아보세요.<br>화면 공유는 기본으로 꺼져 있어요.</p></div><div id="guide-topics" class="guide-topics"></div><p class="guide-safety">가이드의 화면과 상품은 연습용입니다. 실제 화면을 캡처하거나 AI에 보내지 않아요.</p><div class="guide-welcome-actions"><button id="guide-skip" class="secondary">바로 사용할게요</button><button id="guide-start" class="primary">2분 둘러보기</button></div></div><div id="guide-lesson" hidden><nav id="guide-steps" aria-label="가이드 단계"></nav><div class="guide-lesson-content"><div class="guide-explanation"><span id="guide-number"></span><h3 id="guide-step-title"></h3><p id="guide-step-description"></p><p id="guide-step-tip"></p></div><div id="guide-demo" class="guide-demo"></div></div><footer><button id="guide-back" class="secondary">이전</button><span id="guide-progress" role="status"></span><button id="guide-next" class="primary">다음</button></footer></div></dialog>
 </body>
 </html>

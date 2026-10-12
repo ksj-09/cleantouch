@@ -1,0 +1,7 @@
+const response=await fetch('https://generativelanguage.googleapis.com/v1beta/auth_tokens',{method:'POST',headers:{'x-goog-api-key':process.env.GEMINI_API_KEY,'content-type':'application/json'},body:JSON.stringify({uses:1,expireTime:new Date(Date.now()+300000).toISOString(),newSessionExpireTime:new Date(Date.now()+60000).toISOString()})});
+const token=await response.json();if(!response.ok||!token.name){console.log(JSON.stringify({issued:false,status:response.status}));process.exit(1);}
+const socket=new WebSocket('wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token='+encodeURIComponent(token.name));
+const timeout=setTimeout(()=>{console.log('Live handshake timed out');socket.close();},20000);
+socket.onopen=()=>socket.send(JSON.stringify({setup:{model:'models/gemini-3.1-flash-live-preview',generationConfig:{responseModalities:['AUDIO']},outputAudioTranscription:{}}}));
+socket.onmessage=async event=>{const raw=typeof event.data==='string'?event.data:await event.data.text();const data=JSON.parse(raw);console.log(JSON.stringify({setupComplete:!!data.setupComplete,error:data.error?.message}));if(data.setupComplete||data.error){clearTimeout(timeout);socket.close();}};
+socket.onclose=event=>{clearTimeout(timeout);console.log(JSON.stringify({closed:event.code,reason:event.reason.replace(token.name,'[redacted]').slice(0,400)}));};socket.onerror=()=>console.log('Live socket connection failed');

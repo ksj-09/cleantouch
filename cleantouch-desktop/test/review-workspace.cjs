@@ -1,0 +1,37 @@
+const {app,BrowserWindow,ipcMain,protocol}=require('electron');
+const fs=require('node:fs/promises'),path=require('node:path'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..'),layouts=[];
+protocol.registerSchemesAsPrivileged([{scheme:'cleantouch',privileges:{standard:true,secure:true,supportFetchAPI:true,corsEnabled:true}}]);
+app.whenReady().then(async()=>{try{
+ for(const name of ['list','load','save','delete'])ipcMain.handle('chats:'+name,()=>name==='list'?[]:null);
+ protocol.handle('cleantouch',async request=>{const file=path.join(root,new URL(request.url).pathname.slice(1));return new Response(await fs.readFile(file),{headers:{'Content-Type':{'.html':'text/html','.js':'text/javascript','.css':'text/css'}[path.extname(file)]||'application/octet-stream'}});});
+ for(const method of ['get','activity'])ipcMain.handle('updates:'+method,()=>({status:'unsupported'}));
+ ipcMain.handle('place:cancel',()=>{});ipcMain.handle('video:time',()=>({available:false}));
+ ipcMain.handle('window:layout',(_event,value)=>{layouts.push(value);return {pinned:true};});
+ const win=new BrowserWindow({show:false,width:400,height:740,webPreferences:{preload:path.join(root,'preload.cjs'),sandbox:true,contextIsolation:true}});
+ await win.loadURL('cleantouch://app/index.html');
+ const state=await win.webContents.executeJavaScript(`(async()=>{
+  document.body.classList.add('widget-mode');ui.widget.hidden=false;
+  document.getElementById('collapse-widget').click();await new Promise(r=>setTimeout(r,30));
+  if(!document.body.classList.contains('compact-widget'))throw Error('Compact mode failed');
+  document.getElementById('collapse-widget').click();await new Promise(r=>setTimeout(r,30));
+  const summary=document.querySelector('#widget-results summary').getBoundingClientRect(),footer=document.querySelector('.widget-footer').getBoundingClientRect();
+  if(footer.top<summary.bottom)throw Error('Results and footer overlap');
+  await cleanTouchPlaceChat.open();
+  const preview=ui.widgetPreview.getBoundingClientRect(),chat=document.getElementById('place-chat').getBoundingClientRect();
+  if(ui.widget.hidden||getComputedStyle(ui.widget).display==='none'||chat.top<preview.bottom)throw Error('Conversation hides or overlaps the shared scene');
+  document.getElementById('chat-close').click();await new Promise(r=>setTimeout(r,30));
+  found=new Map([['item',{label:'테스트 상품',thumbnail:'',sightings:[],imageBlob:new Blob(),matches:[]}]]);renderWidgetProducts();
+  const fit=getComputedStyle(document.querySelector('.widget-product img')).objectFit;
+  [...document.querySelectorAll('.widget-product button')].find(x=>x.textContent==='제외').click();
+  if(found.size!==0)throw Error('Incorrect result was not removed');
+  frames=[{analysisDeferred:false}];cursor=0;phase='review';retryAt=0;
+  let scans=0;scanFrame=async frame=>{scans++;frame.analysisDeferred=scans===1;if(scans===1)precisionBackoff=Date.now()+350;else completedFrames.add(frame);};
+  await analyze();if(cursor!==1||scans!==2||phase!=='complete')throw Error('Deferred analysis did not retry automatically');
+  frames=[{}];cursor=0;phase='review';retryAt=0;scanFrame=async frame=>{frame.analysisDeferred=true;precisionBackoff=Date.now()+60000;};
+  const work=analyze();while(!analysisWaitUntil)await new Promise(r=>setTimeout(r,10));cancelAnalysis();await work;
+  if(phase!=='paused'||cursor!==0||analysisWaitUntil)throw Error('Cancel during connection wait lost the pending scene');
+  return {compact:true,footerNoOverlap:true,sharedSceneVisibleInChat:true,thumbnailFit:fit,removeResult:true,automaticRetry:true,cancelDuringWait:true};
+ })()`);
+ assert.equal(state.thumbnailFit,'contain');assert(layouts.includes('compact'));console.log(JSON.stringify(state));app.exit(0);
+}catch(error){console.error(error);app.exit(1);}});

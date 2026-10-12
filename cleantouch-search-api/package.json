@@ -1,7 +1,7 @@
 {
   "name": "cleantouch-search-api",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "dev": "node --env-file-if-exists=.env --watch --import tsx src/server.ts",
@@ -16,6 +16,7 @@
     "express-rate-limit": "^8.2.1",
     "google-auth-library": "^10.3.0",
     "helmet": "^8.1.0",
+    "jpeg-js": "^0.4.4",
     "multer": "^2.0.2",
     "sharp": "^0.35.4"
   },

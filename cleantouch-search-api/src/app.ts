@@ -7,11 +7,12 @@ import multer from 'multer';
 import sharp from 'sharp';
 import { ProviderNotConfiguredError, ProviderRateLimitError, ProviderUnavailableError, VisualSearchError } from './vision-provider.js';
 import type { VisualSearchProvider } from './types.js';
+import {createPlaceChatRouter,GeminiPlaceChat,type PlaceChatProvider} from './place-chat.js';
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 const acceptedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
-export function createApp(provider: VisualSearchProvider) {
+export function createApp(provider: VisualSearchProvider,placeChat: PlaceChatProvider = new GeminiPlaceChat()) {
   const app = express();
   app.disable('x-powered-by');
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
@@ -19,6 +20,7 @@ export function createApp(provider: VisualSearchProvider) {
     origin: process.env.ALLOWED_ORIGINS?.split(',').map((item) => item.trim()).filter(Boolean) ?? false,
     methods: ['GET', 'POST'],
   }));
+  app.use('/v1/place-chat',createPlaceChatRouter(placeChat));
   app.use(express.json({ limit: '32kb' }));
 
   const configuredLimit = Number(process.env.MAX_REQUESTS_PER_MINUTE || 30);

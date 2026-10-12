@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';import fs from 'node:fs/promises';import path from 'node:path';
+const wait=ms=>new Promise(r=>setTimeout(r,ms)),dir=path.resolve('../artifacts/verification');let page;
+for(let i=0;i<50;i++){try{page=(await(await fetch('http://127.0.0.1:9240/json')).json()).find(p=>p.type==='page'&&p.url==='cleantouch://app/index.html');if(page)break;}catch{}await wait(200);}assert(page);
+const ws=new WebSocket(page.webSocketDebuggerUrl);await new Promise(r=>ws.addEventListener('open',r,{once:true}));let id=0;const pending=new Map();
+ws.onmessage=e=>{const d=JSON.parse(e.data),p=pending.get(d.id);if(!p)return;pending.delete(d.id);clearTimeout(p.timer);d.error?p.reject(Error(d.error.message)):p.resolve(d.result);};
+const command=(method,params={},timeout=65000)=>new Promise((resolve,reject)=>{const n=++id,timer=setTimeout(()=>{pending.delete(n);reject(Error(method+' timed out'));},timeout);pending.set(n,{resolve,reject,timer});ws.send(JSON.stringify({id:n,method,params}));});
+async function evaluate(expression){const r=await command('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true,userGesture:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;}
+async function until(expression){for(let i=0;i<200;i++){const r=await evaluate(expression);if(r)return r;await wait(300);}throw Error('Timed out: '+expression);}
+try{
+ await until('typeof cleanTouchChatMemory!=="undefined"');await evaluate(`cleanTouchTutorial.close();cleanTouchPlaceChat.open();document.getElementById('chat-history-toggle').click();cleanTouchChatMemory.select('fixture-0')`);
+ const repaired=await until(`(async()=>{const chats=await bridge.listChats();return chats.length===3&&chats.every(c=>c.titleGenerated)?chats:false;})()`);assert.equal(new Set(repaired.map(c=>c.title)).size,3);
+ const result=await evaluate(`(async()=>{await cleanTouchChatMemory.commit();const chats=await bridge.listChats();return {titles:chats.map(c=>c.title),allGenerated:chats.every(c=>c.titleGenerated),sidebarOpen:!document.getElementById('chat-history').hidden,activeTitle:document.getElementById('chat-conversation-title').textContent,frames:Boolean(stream),sharing:cleanTouchLive.sharing};})()`);assert(result.sidebarOpen&&result.allGenerated);assert(!result.frames&&!result.sharing);assert(!result.titles.some(t=>t==='궁금한 내용 알아보기'));assert(result.titles.includes(result.activeTitle));
+ await fs.writeFile(path.join(dir,'release-0.1.40-title-repair.json'),JSON.stringify(result,null,2));const shot=await command('Page.captureScreenshot',{format:'png'});await fs.writeFile(path.join(dir,'release-0.1.40-title-repair.png'),Buffer.from(shot.data,'base64'));console.log(JSON.stringify(result));
+}finally{try{await command('Browser.close',{},3000);}catch{}ws.close();for(const p of pending.values())clearTimeout(p.timer);}

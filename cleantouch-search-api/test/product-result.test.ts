@@ -16,7 +16,9 @@ test('builds a useful shopping query when a small product has no readable brand'
   assert.equal(result.queryLabel, '검정 미니 숄더백');
   assert.equal(result.matches.length, 2);
   assert.equal(result.matches[0]?.matchKind, 'search_link');
-  assert.match(result.matches[0]?.title ?? '', /검정.*가죽.*체인 스트랩.*미니 숄더백/);
+  assert.match(result.matches[0]?.title ?? '', /검정 미니 숄더백/);
+  assert.equal(new URL(result.matches[0]!.url).searchParams.get('query'), result.queryLabel);
+  assert.doesNotMatch(result.matches[0]?.title ?? '', /가죽|체인 스트랩/);
   assert.match(result.matches[0]?.url ?? '', /search\.shopping\.naver\.com/);
 });
 

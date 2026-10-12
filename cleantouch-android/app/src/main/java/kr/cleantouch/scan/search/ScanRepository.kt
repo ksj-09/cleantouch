@@ -160,7 +160,7 @@ private class ScanSearchException(message: String, cause: Throwable? = null) : E
 private fun userFacingSearchError(error: Exception): Exception = when (error) {
     is ScanSearchException -> error
     is SocketTimeoutException -> ScanSearchException("검색 시간이 오래 걸리고 있어요. 잠시 후 다시 시도해 주세요.", error)
-    is ConnectException, is UnknownHostException -> ScanSearchException("검색 서버에 연결할 수 없어요. PC와 휴대폰의 와이파이와 서버 실행 상태를 확인해 주세요.", error)
+    is ConnectException, is UnknownHostException -> ScanSearchException("상품 찾기에 연결하지 못했어요. 인터넷 연결을 확인하고 잠시 후 다시 시도해 주세요.", error)
     else -> ScanSearchException(error.message?.takeIf { it.isNotBlank() } ?: "상품 검색을 완료하지 못했어요.", error)
 }
 

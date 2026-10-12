@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "CleanTouch 영상 시간 연결",
+  "description": "YouTube와 Instagram의 실제 영상 재생 시간을 이 PC의 CleanTouch에 전달합니다. 영상이나 이미지를 외부 서버에 보내지 않습니다.",
+  "version": "0.1.0",
+  "permissions": [
+    "nativeMessaging",
+    "tabs"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.youtube.com/*",
+        "https://*.instagram.com/*"
+      ],
+      "js": [
+        "video-reader.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuMLRa7cXOsGUUx5iPSHCMzlZWQ6fwR2TGpdlS2l0kDPJpSHRwKA/G5K62IcnAbhp5QJndgTzHuZ543WtwlKovMl83/dHWFXNiF+GhJbHFM/U35KOihgkIe/eUrpuQNAkIii5Heh3jww/uXKLKL1mWVIPhhlVObssIuPK62D8W8jLghPyYYcUHMzrxcXv83K6zl0ksdRmm1UNhHsAtsEfQOTvxbYQvgdf2Oi3be9AUT/zWqp480A/nYQ5BphGxgYdtYulmK5BW4EJrb0jKUHiusBUARBUE8FUJei6/Rlj8ffCSb8uBLpk7lo2sGLmTzGtAYkUztdmNoTdQG6NC3IsKwIDAQAB"
+}
