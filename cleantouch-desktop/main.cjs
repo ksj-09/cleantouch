@@ -1,5 +1,5 @@
 require('./safe-logging.cjs').protectLogs([process.stdout,process.stderr],console);
-const { app, BrowserWindow, desktopCapturer, ipcMain, protocol, session, shell, dialog, nativeImage } = require('electron');
+const { app, BrowserWindow, desktopCapturer, ipcMain, protocol, session, shell, dialog, nativeImage, clipboard, safeStorage } = require('electron');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { requestAi } = require('./service-client.cjs');
@@ -151,7 +151,11 @@ function setWindowLayout(layout) {
 app.whenReady().then(async () => {
   ipcMain.handle('capture:authorize',event=>captureGate.authorize(event.sender,event.senderFrame));
   ipcMain.handle('capture:revoke',()=>captureGate.revoke());
-  const chats=require('./chat-store.cjs').createChatStore(path.join(app.getPath('userData'),'conversations.json'));
+  const chatCodec=safeStorage.isEncryptionAvailable()?{
+    encode:value=>safeStorage.encryptString(value).toString('base64'),
+    decode:value=>safeStorage.decryptString(Buffer.from(value,'base64')),
+  }:undefined;
+  const chats=require('./chat-store.cjs').createChatStore(path.join(app.getPath('userData'),'conversations.json'),chatCodec);
   const titleService=require('./chat-title-service.cjs').createTitleService({store:chats,WebSocket:globalThis.WebSocket,getToken:()=>requestAi(PLACE_CHAT_URL,{task:'live-token',shoppingTools:false},{timeoutMs:20000}),onChange:()=>{if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('chats:changed');}});
   app.on('before-quit',()=>titleService.stop());
   ipcMain.handle('chats:list',async()=>{const list=await chats.list();void chats.all().then(records=>titleService.schedule(records)).catch(()=>{});return list;});
@@ -232,6 +236,7 @@ app.whenReady().then(async () => {
     if (!safe) throw new Error('열 수 없는 상품 링크예요.');
     return shell.openExternal(safe);
   });
+  ipcMain.handle('clipboard:write',(_event,value)=>{if(typeof value!=='string'||value.length>120000)throw new Error('복사할 대화가 너무 길어요.');clipboard.writeText(value);return true;});
   ipcMain.handle('visual:search', async (_event, image) => {
     if (!(image instanceof Uint8Array) || image.length === 0 || image.length > 8 * 1024 * 1024) {
       throw new Error('선택한 상품 사진을 읽지 못했어요. 다시 선택해 주세요.');

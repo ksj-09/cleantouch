@@ -6,6 +6,8 @@
  panel.dataset.chatMode='text';panel.dataset.liveState='off';
  function liveState(phase){panel.dataset.liveState=phase;el('chat-live-stop').hidden=phase==='off'||connectionMode!=='screen';panel.dataset.chatMode=connectionMode;controls();}
  function controls(){const available=true,retry=history.at(-1)?.role==='user'||failedLiveQuestion;for(const id of ['chat-upload','chat-source','chat-import-list','chat-pick-import'])el(id).disabled=busy||importLoading||shareStarting;input.disabled=busy||importLoading||!available||Boolean(pendingProduct&&!image);el('chat-send').disabled=input.disabled||shareStarting||panel.dataset.liveState==='reconnecting';el('chat-place').disabled=busy||importLoading||shareStarting;el('chat-product').disabled=busy||importLoading||shareStarting;el('chat-reset').disabled=false;el('chat-retry').hidden=busy||shareStarting||(!pendingProduct&&!retry);}
+ function closeMore(){el('chat-more-menu').hidden=true;el('chat-more').setAttribute('aria-expanded','false');}
+ function conversationText(){return history.map(m=>`${m.role==='user'?'나':'CleanTouch AI'}: ${m.text}`).join('\n\n').trim();}
  async function open(){if(panel.hidden){returnWidget=document.body.classList.contains('widget-mode');if(returnWidget){document.body.classList.remove('compact-widget');document.body.classList.add('floating-chat');ui.widget.hidden=false;await bridge.setWindowLayout('widget-panel');}panel.hidden=false;}if(!log.children.length)message('model','안녕하세요! 편하게 물어보세요. 화면은 공유 버튼을 눌러 허용할 때만 AI에 전송돼요.');controls();}
  function reset(preserveRecord=false){if(!preserveRecord){cleanTouchChatMemory.commit();cleanTouchChatMemory.newConversation();}bridge.cancelPlaceRequests?.('chat:'+generation).catch(()=>{});generation++;window.cleanTouchLive?.stop();if(shareOwnsCapture){shareOwnsCapture=false;void stopCapture(true);}cleanTouchPermissions.cancel();connectionMode='text';panel.dataset.chatMode='text';panel.dataset.liveState='off';el('chat-live-stop').hidden=true;shareStarting=false;liveAnswerElement=null;importGeneration++;importLoading=false;busy=false;failedLiveQuestion='';pendingProduct=null;pendingTarget='';input.value='';image='';history=[];if(imageUrl)URL.revokeObjectURL(imageUrl);imageUrl='';log.replaceChildren();el('chat-error').textContent='';controls();}
  async function keepConversation(){bridge.cancelPlaceRequests?.('chat:'+generation).catch(()=>{});generation++;cleanTouchLive.stop();if(shareOwnsCapture){shareOwnsCapture=false;await stopCapture(true);}connectionMode='text';shareStarting=false;liveAnswerElement=null;busy=false;failedLiveQuestion='';pendingProduct=null;pendingTarget='';pendingContinue=false;liveState('off');}
@@ -22,6 +24,12 @@
  }catch(error){await open();el('chat-error').textContent=error.message;controls();}}
  async function openAssistant(){await open();input.focus();}
  el('ai-launcher').onclick=openAssistant;el('widget-place').onclick=openAssistant;
+ el('chat-more').onclick=event=>{event.stopPropagation();const menu=el('chat-more-menu'),opening=menu.hidden;menu.hidden=!opening;el('chat-more').setAttribute('aria-expanded',String(opening));};
+ el('chat-share-copy').onclick=async()=>{const text=conversationText();if(!text){el('chat-error').textContent='복사할 대화가 아직 없어요.';closeMore();return;}try{await bridge.copyText(text);el('chat-error').textContent='대화 내용을 클립보드에 복사했어요.';}catch(error){el('chat-error').textContent=error.message;}closeMore();};
+ el('chat-share-screen').onclick=()=>{closeMore();startScreenShare();};
+ el('chat-share-photo').onclick=()=>{closeMore();chooseImport('files');};
+ el('chat-privacy').onclick=()=>{closeMore();el('chat-error').textContent='화면 공유는 직접 허용한 동안만 작동합니다. 마이크·소리·위치는 전송하지 않고, 분석 이미지는 서버에 저장하지 않습니다. 대화 기록은 Windows 사용자 암호화로 이 PC에 저장됩니다.';};
+ document.addEventListener('click',event=>{if(!el('chat-more-menu').hidden&&!el('chat-more-menu').contains(event.target)&&event.target!==el('chat-more'))closeMore();});
  async function connectAi(mode='text',clearConversation=false){
   if(shareStarting)return;
   const startedFromWidget=liveCompanion?false:document.body.classList.contains('widget-mode');

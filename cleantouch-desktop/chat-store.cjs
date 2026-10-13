@@ -27,12 +27,15 @@ function cleanRecord(value) {
   const contextMessages=conversationContext.merge([],value.contextMessages||value.entries||history);
   return {id:value.id, title:generic?titlePolicy.fallback(entries):oldTitle, titleGenerated:Boolean(value.titleGenerated)&&!generic, updatedAt:Number.isFinite(value.updatedAt)?value.updatedAt:Date.now(), source:value.source==='import'?'import':'screen', image:image(value.image), entries, history,contextMessages};
 }
-function createChatStore(file) {
+function createChatStore(file, codec) {
   let queue = Promise.resolve();
   const serial = fn => {const task=queue.then(fn);queue=task.catch(()=>{});return task;};
   async function read() {
     try { const stat=await fs.stat(file); if(stat.size>MAX_BYTES)throw Error('대화 기록 파일이 너무 커요.');
-      const parsed=JSON.parse(await fs.readFile(file,'utf8')); if(parsed.version!==1||!Array.isArray(parsed.chats))throw Error('대화 기록 형식이 올바르지 않아요.');
+      const stored=JSON.parse(await fs.readFile(file,'utf8'));
+      const parsed=stored?.version===2&&stored?.encrypted===true
+        ? JSON.parse(codec?.decode(stored.payload)||'null') : stored;
+      if(parsed?.version!==1||!Array.isArray(parsed.chats))throw Error('대화 기록 형식이 올바르지 않아요.');
       return parsed.chats.slice(0,MAX_CHATS).map(cleanRecord);
     } catch(error) {if(error.code==='ENOENT')return [];throw Error('저장된 대화를 읽지 못했어요. 기존 기록은 덮어쓰지 않습니다.');}
   }
@@ -41,7 +44,8 @@ function createChatStore(file) {
     let body=JSON.stringify({version:1,chats});
     while(Buffer.byteLength(body)>MAX_BYTES&&chats.length>1){chats.pop();body=JSON.stringify({version:1,chats});}
     if(Buffer.byteLength(body)>MAX_BYTES)throw Error('이 대화에 사진이 너무 많아요. 새 대화를 시작해 주세요.');
-    await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file+'.tmp',body,'utf8');await fs.rename(file+'.tmp',file);
+    const stored=codec?JSON.stringify({version:2,encrypted:true,payload:codec.encode(body)}):body;
+    await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file+'.tmp',stored,'utf8');await fs.rename(file+'.tmp',file);
   }
   return {
     list:()=>serial(async()=> (await read()).map(({id,title,updatedAt,titleGenerated})=>({id,title,updatedAt,titleGenerated})).sort((a,b)=>b.updatedAt-a.updatedAt)),

@@ -1,6 +1,6 @@
 {
   "name": "cleantouch-desktop",
-  "version": "0.1.41",
+  "version": "0.1.42",
   "private": true,
   "description": "CleanTouch Windows screen product finder",
   "author": "CleanTouch",
@@ -32,6 +32,7 @@
       "chat-store.cjs",
       "chat-memory.js",
       "shopping-cards.js",
+      "shopping-providers.js",
       "capture-consent.cjs",
       "share-permission.js",
       "tutorial.js",

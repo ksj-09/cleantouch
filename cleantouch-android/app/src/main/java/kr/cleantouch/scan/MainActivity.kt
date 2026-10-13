@@ -45,12 +45,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 
-private val Ink = Color(0xFF12121F)
-private val Panel = Color(0xFF202032)
-private val Lilac = Color(0xFFB9AAFF)
-private val Muted = Color(0xFFA7A5BC)
-private val Mint = Color(0xFF7AE7C7)
+private val Ink = Color(0xFFFBF9F6)
+private val Panel = Color(0xFFFFFDFC)
+private val Lilac = Color(0xFF7052E8)
+private val Muted = Color(0xFF777185)
+private val Mint = Color(0xFF486C5C)
 
 class MainActivity : ComponentActivity() {
     companion object { var foreground = false; private set }
@@ -68,7 +69,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         ScanSessionStore.initialize(this)
         setContent {
-            MaterialTheme(colorScheme = darkColorScheme(primary = Lilac, background = Ink, surface = Panel)) {
+            MobileTheme {
                 Screen()
             }
         }
@@ -79,7 +80,12 @@ class MainActivity : ComponentActivity() {
         var pending by rememberSaveable { mutableStateOf(false) }
         var consent by remember { mutableStateOf(false) }
         var status by remember { mutableStateOf("") }
+        var tutorial by rememberSaveable { mutableStateOf(!getSharedPreferences("onboarding",0).getBoolean("seen_v1",false)) }
+        if(tutorial) AlertDialog(onDismissRequest={ tutorial=false;getSharedPreferences("onboarding",0).edit().putBoolean("seen_v1",true).apply() },
+            title={Text("영상 속 마음에 드는 순간")},text={Text("1. 원을 눌러 스캔을 시작하세요. 권한을 허용하면 작은 버튼이 화면에 떠요.\n\n2. YouTube나 Instagram을 보다가 버튼을 누르고, 찾을 상품 안쪽을 터치하세요.\n\n3. AI로 비슷한 상품을 찾거나 Lens에서 비교하세요. 모두 분석은 스캔을 잠시 멈추고 모은 장면을 분석합니다.\n\nAI 대화는 사진 없이도 가능합니다. 화면 공유는 직접 허용할 때만 켜져요.")},
+            confirmButton={TextButton(onClick={tutorial=false;getSharedPreferences("onboarding",0).edit().putBoolean("seen_v1",true).apply()}){Text("시작하기")}})
         val coroutineScope = rememberCoroutineScope()
+        var analysisJob by remember { mutableStateOf<Job?>(null) }
         val manager = getSystemService(MediaProjectionManager::class.java)
         val projection = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK && result.data != null) {
@@ -113,7 +119,7 @@ class MainActivity : ComponentActivity() {
         if (consent) AlertDialog(
             onDismissRequest = { consent = false },
             title = { Text("화면 스캔 시작") },
-            text = { Text("작은 위젯을 띄운 뒤 유튜브나 인스타그램에서 영상을 보세요. 위젯의 ‘상품 터치’를 누르면 화면에서 상품을 직접 고를 수 있어요.\n\n스캔 중에는 약 3초 간격으로 장면을 기기에 보관합니다(최대 240장면). 소리는 저장하지 않습니다. 모두 분석은 기기에서 처리하며, Google Lens 검색을 선택할 때만 상품 사진을 Google로 보냅니다.") },
+            text = { Text("작은 위젯을 띄운 뒤 YouTube나 Instagram에서 영상을 보세요. 위젯의 ‘상품 터치’를 누르면 찾을 물건을 직접 고를 수 있어요.\n\n약 3초 간격으로 장면을 기기에 보관합니다(최대 240장면). 소리는 저장하지 않아요. ‘모두 분석’이나 상품 AI 분석을 누르면 선택한 사진을 AI에 보내 상품을 확인합니다. Lens 검색은 상품 사진을 Google에 보냅니다.") },
             confirmButton = { TextButton(onClick = {
                 consent = false
                 pending = true
@@ -131,22 +137,26 @@ class MainActivity : ComponentActivity() {
                 if (snapshot.captureActive) FloatingScanService.analyzeAll(this)
                 else {
                     ScanSessionStore.update { it.copy(phase = ScanPhase.ANALYZING) }
-                    coroutineScope.launch {
+                    analysisJob = coroutineScope.launch {
                     try { LocalSceneAnalyzer(applicationContext).analyze() }
                     catch (error: CancellationException) { ScanSessionStore.update { it.copy(phase = ScanPhase.INTERRUPTED) }; throw error }
                     catch (error: Exception) { ScanSessionStore.update { it.copy(phase = ScanPhase.INTERRUPTED, message = error.message ?: "분석하지 못했어요.") } }
                     }
                 }
-            }, resume = { FloatingScanService.resume(this) }, openScene = { scene ->
+            }, cancelAnalysis = {
+                if(FloatingScanService.running)FloatingScanService.cancelAnalysis(this) else {
+                    analysisJob?.cancel();ScanSessionStore.update {it.copy(phase=ScanPhase.PAUSED,message="분석을 멈췄어요. 남은 장면은 다시 분석할 수 있어요.")}
+                }
+            }, guide = {tutorial=true}, resume = { FloatingScanService.resume(this) }, openScene = { scene ->
                 if (Settings.canDrawOverlays(this)) FloatingScanService.openScene(this, scene)
                 else status = "지난 장면에서 상품을 고르려면 다른 앱 위에 표시를 허용해 주세요."
             }, open = { url ->
                 runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }.onFailure { status = "이 링크를 열 수 있는 앱이 없어요." }
             }, placeChat = {
-                val scene=snapshot.scenes.lastOrNull()
-                if(scene==null) status="먼저 영상을 스캔한 뒤 위젯에서 장소 분석을 눌러 주세요."
-                else startActivity(Intent(this,PlaceChatActivity::class.java).putExtra("scene",scene.path).putExtra("chooseMode",true).putExtra("restoreWidget",snapshot.captureActive))
+                startActivity(Intent(this,PlaceChatActivity::class.java).putExtra("restoreWidget",snapshot.captureActive))
             }, searchProduct = { product ->
+                startActivity(Intent(this,PlaceChatActivity::class.java).putExtra("scene",product.thumbnail).putExtra("product",true).putExtra("restoreWidget",snapshot.captureActive))
+            }, lensProduct = { product ->
                 runCatching {
                     val image = FileProvider.getUriForFile(this, "$packageName.fileprovider", java.io.File(product.thumbnail))
                     startActivity(Intent(this, LensSearchActivity::class.java).apply {
@@ -161,13 +171,13 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable private fun MobileDashboard(snapshot: ScanSnapshot, pending: Boolean, status: String, toggle: () -> Unit,
-    showWidget: () -> Unit, analyzeAll: () -> Unit, resume: () -> Unit, openScene: (CapturedScene) -> Unit,
-    open: (String) -> Unit, placeChat: () -> Unit, searchProduct: (RecordedProduct) -> Unit) {
+    showWidget: () -> Unit, analyzeAll: () -> Unit, cancelAnalysis: () -> Unit, guide: () -> Unit, resume: () -> Unit, openScene: (CapturedScene) -> Unit,
+    open: (String) -> Unit, placeChat: () -> Unit, searchProduct: (RecordedProduct) -> Unit, lensProduct: (RecordedProduct) -> Unit) {
     val analyzing = snapshot.phase == ScanPhase.ANALYZING
     var filter by rememberSaveable(snapshot.id) { mutableStateOf("") }
     LazyColumn(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 22.dp), horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        item { Spacer(Modifier.height(6.dp)); Brand() }
+        item { Spacer(Modifier.height(6.dp)); Brand(guide) }
         item {
             Text("영상에서 마음에 든 상품,\n한 번 눌러 찾아보세요.", fontSize = 25.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(22.dp))
@@ -193,12 +203,13 @@ class MainActivity : ComponentActivity() {
             Text("보관한 장면 ${snapshot.scenes.size}개 · 찾은 상품 ${snapshot.products.size}개", color = Mint, fontSize = 13.sp)
         }
         item {
-            OutlinedButton(onClick=placeChat,modifier=Modifier.fillMaxWidth()){Text("✦ AI 챗봇 · 상품·장소 분석")}
+            Button(onClick=placeChat,modifier=Modifier.fillMaxWidth()){Text("✦ AI에게 물어보기")}
             Button(onClick = analyzeAll, enabled = snapshot.scenes.isNotEmpty() && !analyzing && !pending, modifier = Modifier.fillMaxWidth()) {
                 Text(if (analyzing) "모든 장면을 분석하고 있어요…" else "모두 분석 · 스캔 일시정지")
             }
             if (snapshot.captureActive && snapshot.phase != ScanPhase.RECORDING && !analyzing) TextButton(onClick = resume) { Text("스캔 계속하기") }
             if (analyzing) {
+                TextButton(onClick=cancelAnalysis){Text("분석 멈추기 · 결과 보관")}
                 LinearProgressIndicator(progress = { snapshot.completedFrames.size.toFloat() / snapshot.totalFrames.coerceAtLeast(1) }, modifier = Modifier.fillMaxWidth())
                 Text("${snapshot.completedFrames.size} / ${snapshot.totalFrames} 장면", fontSize = 12.sp, color = Muted)
             }
@@ -207,7 +218,7 @@ class MainActivity : ComponentActivity() {
         }
         if (snapshot.products.isNotEmpty()) {
             item { OutlinedTextField(filter, { filter = it }, modifier = Modifier.fillMaxWidth(), label = { Text("찾은 상품 검색") }, singleLine = true) }
-            items(snapshot.products.filter { it.label.contains(filter, true) }, key = { it.id }) { ProductCard(it, open, searchProduct) }
+            items(snapshot.products.filter { it.label.contains(filter, true) }, key = { it.id }) { ProductCard(it, open, searchProduct, lensProduct) }
         }
         if (snapshot.scenes.isNotEmpty()) {
             item { Text("지난 장면에서 직접 찾기", fontWeight = FontWeight.Bold); Text("장면을 열고 상품을 누르세요. 자동 인식이 놓친 물건도 찾을 수 있어요.", color = Muted, fontSize = 12.sp) }
@@ -225,16 +236,16 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Composable private fun Brand() {
+@Composable private fun Brand(guide:()->Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Icon(painterResource(R.drawable.ic_scan_notification), null, Modifier.size(30.dp), tint = Lilac)
         Text("CleanTouch", fontSize = 21.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.weight(1f))
-        Text("SCREEN DISCOVERY", color = Muted, fontSize = 8.sp, letterSpacing = 1.sp)
+        TextButton(onClick=guide){Text("사용법",fontSize=12.sp)}
     }
 }
 
-@Composable private fun ProductCard(product: RecordedProduct, open: (String) -> Unit, shareImage: (RecordedProduct) -> Unit) {
+@Composable private fun ProductCard(product: RecordedProduct, open: (String) -> Unit, analyze: (RecordedProduct) -> Unit, shareImage: (RecordedProduct) -> Unit) {
     val bitmap by produceState<android.graphics.Bitmap?>(null, product.thumbnail) {
         value = withContext(Dispatchers.IO) { BitmapFactory.decodeFile(product.thumbnail) }
     }
@@ -250,8 +261,9 @@ class MainActivity : ComponentActivity() {
                 Text("동일 상품 여부·가격은 판매처에서 확인", color = Muted, fontSize = 10.sp)
             }
         }
-        TextButton(onClick = { shareImage(product) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp)) {
-            Text("Google Lens로 비슷한 상품 찾기 · 사진 전송", fontSize = 12.sp)
+        Row(Modifier.fillMaxWidth().padding(horizontal=10.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            Button(onClick={analyze(product)},modifier=Modifier.weight(1f)){Text("AI 분석 · 구매 찾기",fontSize=12.sp)}
+            OutlinedButton(onClick={shareImage(product)}){Text("Lens",fontSize=12.sp)}
         }
         product.matches.forEach { match ->
             TextButton(onClick = { open(match.url) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp)) {

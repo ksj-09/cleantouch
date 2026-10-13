@@ -29,5 +29,6 @@ contextBridge.exposeInMainWorld('cleanTouch', {
   },
   setWindowLayout: layout => ipcRenderer.invoke('window:layout', layout),
   openLink: url => ipcRenderer.invoke('links:open', url),
+  copyText: text => ipcRenderer.invoke('clipboard:write', text),
   searchVisual: image => ipcRenderer.invoke('visual:search', image),
 });

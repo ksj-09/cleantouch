@@ -58,8 +58,8 @@ class PlaceChatTest {
         val activity=instrumentation.startActivitySync(Intent(context,PlaceChatActivity::class.java).putExtra("scene",file.absolutePath).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         try{
             val device=UiDevice.getInstance(instrumentation)
-            assertNotNull(device.wait(Until.findObject(By.text("영상 영역을 확인해 주세요")),10000))
-            assertNotNull(device.findObject(By.text("이 영상 영역으로 장소 분석")))
+            assertNotNull(device.wait(Until.findObject(By.text("상품 터치 · 분석")),10000))
+            assertNotNull(device.findObject(By.text("첨부한 사진으로 대화 · 화면 공유 꺼짐")))
             device.takeScreenshot(File(context.filesDir,"place-chat-preview.png"))
         }finally{instrumentation.runOnMainSync{activity.finish()};file.delete()}
     }

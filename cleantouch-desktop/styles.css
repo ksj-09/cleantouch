@@ -658,6 +658,13 @@ body:has(.place-chat:not([hidden])) .ai-launcher {visibility:hidden}
 .chat-shopping-card>strong {font-size:13px}
 .chat-shopping-card>p {margin:0;font-size:11px;line-height:1.6;color:var(--muted)}
 .chat-shopping-actions {display:flex;flex-direction:column;gap:7px}
+.chat-provider-title {font-size:11px;color:var(--muted);font-weight:700}
+.chat-provider-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.chat-provider-grid .chat-map {margin:0;min-height:34px}
+.chat-more-menu {position:absolute;z-index:9;top:54px;right:18px;width:190px;padding:7px;background:var(--surface);border:1px solid var(--line);border-radius:13px;box-shadow:0 14px 38px #3020442b}
+.chat-more-menu[hidden] {display:none}
+.chat-more-menu button {display:block;width:100%;padding:10px 11px;text-align:left;color:var(--text);background:transparent;border:0;border-radius:9px;font-size:12px}
+.chat-more-menu button:hover {background:var(--raised)}
 .chat-shopping-card .chat-map {margin:0;width:100%;font-size:12px;white-space:normal}
 .dark-theme .chat-history,.dark-theme .chat-shopping-card {background:#252232;color:#f0edf7}
 .dark-theme .chat-history-row {background:#302b43}

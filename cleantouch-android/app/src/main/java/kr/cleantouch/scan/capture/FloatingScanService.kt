@@ -36,6 +36,7 @@ class FloatingScanService : Service() {
     private var display: VirtualDisplay? = null
     private var reader: ImageReader? = null
     private var overlay: View? = null
+    private var chatPanel: FloatingAiPanel? = null
     private var frozen: Bitmap? = null
     private var marked: Bitmap? = null
     private var captureRequested = false
@@ -60,7 +61,8 @@ class FloatingScanService : Service() {
     private var nextObserveAt = 0L
     private enum class Mode { BUBBLE, PANEL, PICKER, CAPTURING, RESULT, HIDDEN }
     private var mode = Mode.BUBBLE
-    private val masker by lazy { PointObjectMasker(applicationContext) }
+    private val maskerDelegate = lazy { PointObjectMasker(applicationContext) }
+    private val masker by maskerDelegate
     private val dimBubble = Runnable { if (mode == Mode.BUBBLE) overlay?.alpha = .45f }
     private val timeout = Runnable {
         if (mode == Mode.CAPTURING) recoverCapture("화면을 읽지 못했어요. 스캔은 유지되니 다시 눌러 주세요.")
@@ -95,6 +97,7 @@ class FloatingScanService : Service() {
             PICK -> { if (!busy && projection != null) pickLive(); return START_NOT_STICKY }
             PLACE -> { if (!busy && projection != null) pickLive(true); return START_NOT_STICKY }
             ALL -> { analyzeAll(); return START_NOT_STICKY }
+            CANCEL_ANALYSIS -> { analysis?.cancel();ScanSessionStore.update {it.copy(phase=ScanPhase.PAUSED,message="분석을 멈췄어요. 확인한 상품은 보관했고, 다시 누르면 남은 장면부터 이어갑니다.")};if(projection!=null&&!MainActivity.foreground&&!PlaceChatActivity.foreground)bubble();return START_NOT_STICKY }
             RESUME -> {
                 if (projection != null && analysis?.isActive != true) {
                     ScanSessionStore.update { it.copy(phase = ScanPhase.RECORDING, message = "", captureActive = true) }
@@ -172,8 +175,8 @@ class FloatingScanService : Service() {
                 if (timestamp > 0) lastFrameTimestampNs = timestamp
                 val capture = captureRequested && now >= captureAfter &&
                     (timestamp <= 0 || captureFrameAfterNs <= 0 || timestamp >= captureFrameAfterNs)
-                val collect = !MainActivity.foreground && !suspendCapture && ScanSessionStore.state.value.phase == ScanPhase.RECORDING && mode in setOf(Mode.BUBBLE, Mode.HIDDEN) && now >= nextSceneAt && sceneWrite?.isActive != true
-                val observe = !capture && !busy && !MainActivity.foreground && !suspendCapture && ScanSessionStore.state.value.phase == ScanPhase.RECORDING && mode in setOf(Mode.BUBBLE, Mode.HIDDEN) && now >= nextObserveAt && !playbackObserver.busy
+                val collect = !MainActivity.foreground && !FloatingAiPanel.visible && !suspendCapture && ScanSessionStore.state.value.phase == ScanPhase.RECORDING && mode in setOf(Mode.BUBBLE, Mode.HIDDEN) && now >= nextSceneAt && sceneWrite?.isActive != true
+                val observe = !capture && !busy && !MainActivity.foreground && !FloatingAiPanel.visible && !suspendCapture && ScanSessionStore.state.value.phase == ScanPhase.RECORDING && mode in setOf(Mode.BUBBLE, Mode.HIDDEN) && now >= nextObserveAt && !playbackObserver.busy
                 if (!capture && !collect && !observe) return@use
                 val plane = image.planes[0]
                 val pixels = RgbaFrame.copyPixels(plane.buffer, image.width, image.height, plane.rowStride, plane.pixelStride)
@@ -188,7 +191,11 @@ class FloatingScanService : Service() {
                     if (capturePlace) { capturePlace=false; openPlaceChat(bitmap) } else pickStored()
                 } else if (collect) { nextSceneAt = now + 3000; saveScene(bitmap, timeline.observe(now = now)) }
                 else bitmap.recycle()
-            } } catch (error: Exception) {
+            } } catch (error: OutOfMemoryError) {
+                android.util.Log.e("CleanTouchCapture","Insufficient memory reading frame",error)
+                if(captureRequested||mode==Mode.CAPTURING||mode==Mode.PICKER)recoverCapture("메모리가 부족해 이번 화면 선택을 멈췄어요. 스캔은 유지됩니다.")
+                else {nextSceneAt=SystemClock.uptimeMillis()+5000;ScanSessionStore.update{it.copy(phase=ScanPhase.PAUSED,message="메모리가 부족해 장면 모으기를 잠시 멈췄어요.")}}
+            } catch (error: Exception) {
                 android.util.Log.e("CleanTouchCapture", "Screen frame failed", error)
                 if (mode == Mode.CAPTURING || mode == Mode.PICKER) recoverCapture("화면을 읽지 못했어요. 스캔은 유지되니 다시 눌러 주세요.")
                 else nextSceneAt = SystemClock.uptimeMillis() + 3000
@@ -215,9 +222,9 @@ class FloatingScanService : Service() {
             try {
                 val time = (System.currentTimeMillis() - snapshot.startedAt).coerceAtLeast(0)
                 val file = File(snapshot.directory, "scene-$time.jpg")
-                val scale = minOf(1f, 960f / maxOf(bitmap.width, bitmap.height))
+                val scale = minOf(1f, 1280f / maxOf(bitmap.width, bitmap.height))
                 val small = Bitmap.createScaledBitmap(bitmap, (bitmap.width * scale).toInt(), (bitmap.height * scale).toInt(), true)
-                try { file.outputStream().use { check(small.compress(Bitmap.CompressFormat.JPEG, 82, it)) } }
+                try { file.outputStream().use { check(small.compress(Bitmap.CompressFormat.JPEG, 90, it)) } }
                 finally { if (small !== bitmap) small.recycle() }
                 ScanSessionStore.update { if (it.id == snapshot.id) it.copy(scenes = it.scenes + CapturedScene(time, file.absolutePath), durationMs = time, timeMarks = it.timeMarks + (time to stamp)) else it }
             } catch (error: CancellationException) { throw error }
@@ -235,7 +242,7 @@ class FloatingScanService : Service() {
             try { LocalSceneAnalyzer(applicationContext).analyze() }
             catch (error: CancellationException) { throw error }
             catch (error: Exception) { ScanSessionStore.update { it.copy(phase = ScanPhase.INTERRUPTED, message = error.message ?: "분석을 마치지 못했어요. 다시 시도할 수 있습니다.") } }
-            finally { if (projection != null) bubble() }
+            finally { if (projection != null && !MainActivity.foreground && !PlaceChatActivity.foreground) bubble() }
         }
     }
 
@@ -296,7 +303,11 @@ class FloatingScanService : Service() {
             addView(TextView(this@FloatingScanService).apply { text = message; setTextColor(Color.WHITE); textSize = 14f; maxWidth = dp(260) })
         }
         if (!busy) column.addView(button("현재 화면에서 상품 터치") { pickLive() })
-        if (!busy) column.addView(button("장소 분석 · AI에게 물어보기") { pickLive(true) })
+        if (!busy) column.addView(button("영상 위에서 AI와 대화") {hideButton();chatPanel=FloatingAiPanel(this){bubble()}.also{it.show()}})
+        if (!busy) column.addView(button(if(ScanSessionStore.state.value.phase==ScanPhase.RECORDING) "장면 모으기 일시정지" else "장면 모으기 계속") {
+            ScanSessionStore.update { it.copy(phase=if(it.phase==ScanPhase.RECORDING)ScanPhase.PAUSED else ScanPhase.RECORDING) };nextSceneAt=0;bubble()
+        })
+        if (!busy) column.addView(button("모은 장면 모두 분석") { analyzeAll() })
         column.addView(button("앱 열기 · 모두 분석 / 상품 목록") { startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); hideButton() })
         column.addView(button(if (compact) "위젯 크게" else "위젯 작게") { compact = !compact; getSharedPreferences("floating_button", 0).edit().putBoolean("compact", compact).apply(); bubble() })
         column.addView(button("접기") { bubble() }); column.addView(button("숨기기 · 알림에서 다시 표시") { hideButton() }); column.addView(button("스캔 종료") { stopSelf() })
@@ -415,7 +426,10 @@ class FloatingScanService : Service() {
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(12), dp(16), dp(12)); setBackgroundColor(0xF0181B28.toInt())
             addView(TextView(this@FloatingScanService).apply { text = "이 상품을 선택했어요"; setTextColor(Color.WHITE); textSize = 17f })
-            addView(TextView(this@FloatingScanService).apply { text = "선택한 상품 사진으로 Google Lens에서 정보와 판매처를 찾아볼까요?"; setTextColor(Color.LTGRAY); textSize = 13f })
+            addView(TextView(this@FloatingScanService).apply { text = "AI로 비슷한 상품을 찾거나 Lens에서 사진을 비교하세요."; setTextColor(Color.LTGRAY); textSize = 13f })
+            addView(button("AI 분석 · 구매 후보 찾기") {
+                startActivity(Intent(this@FloatingScanService,PlaceChatActivity::class.java).putExtra("scene",product.thumbnail).putExtra("product",true).putExtra("restoreWidget",projection!=null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            })
             addView(button("Google Lens에서 정보 · 구매처 찾기") {
                 // Keep the visible overlay until Activity.onResume: hiding it first can block background launch on Android.
                 runCatching {
@@ -482,9 +496,10 @@ class FloatingScanService : Service() {
     override fun onDestroy() {
         if (playbackObserverDelegate.isInitialized()) playbackObserver.close()
         running = false
+        chatPanel?.close(false)
         handler.removeCallbacksAndMessages(null); scope.cancel(); removeOverlay()
         display?.release(); reader?.close(); projection?.unregisterCallback(callback); projection?.stop(); projection = null
-        runCatching { masker.close() }; releaseSelection()
+        if(maskerDelegate.isInitialized())runCatching { masker.close() }; releaseSelection()
         ScanSessionStore.update { it.copy(captureActive = false, phase = if (it.phase == ScanPhase.RECORDING) ScanPhase.PAUSED else if (it.phase == ScanPhase.ANALYZING) ScanPhase.INTERRUPTED else it.phase) }
         stopForeground(STOP_FOREGROUND_REMOVE); super.onDestroy()
     }
@@ -495,6 +510,7 @@ class FloatingScanService : Service() {
         private const val STOP = "kr.cleantouch.STOP_FLOATING"; private const val SHOW = "kr.cleantouch.SHOW_FLOATING"
         private const val HIDE = "kr.cleantouch.HIDE_FLOATING"; private const val PICK = "kr.cleantouch.PICK_PRODUCT"
         private const val ALL = "kr.cleantouch.ANALYZE_ALL"; private const val RESUME = "kr.cleantouch.RESUME_SCAN"; private const val SCENE = "kr.cleantouch.OPEN_SCENE"
+        private const val CANCEL_ANALYSIS = "kr.cleantouch.CANCEL_ANALYSIS"
         private const val PLACE = "kr.cleantouch.PLACE_CHAT"
         fun start(context: Context, code: Int, data: Intent) = ContextCompat.startForegroundService(context, Intent(context, FloatingScanService::class.java).putExtra("result", code).putExtra("projection", data))
         private fun send(context: Context, action: String) { context.startService(Intent(context, FloatingScanService::class.java).setAction(action)) }
@@ -504,6 +520,7 @@ class FloatingScanService : Service() {
         fun pick(context: Context) = send(context, PICK)
         fun place(context: Context) = send(context, PLACE)
         fun analyzeAll(context: Context) = send(context, ALL)
+        fun cancelAnalysis(context: Context) = send(context, CANCEL_ANALYSIS)
         fun resume(context: Context) = send(context, RESUME)
         fun openScene(context: Context, scene: CapturedScene) { context.startService(Intent(context, FloatingScanService::class.java).setAction(SCENE).putExtra("scene", scene.path)) }
     }

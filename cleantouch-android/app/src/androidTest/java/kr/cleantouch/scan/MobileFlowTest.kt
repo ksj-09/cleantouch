@@ -25,6 +25,7 @@ class MobileFlowTest {
     @Test fun liveWidgetSelectsProductAndLaunchesLens() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("lens") == "true")
         val device = UiDevice.getInstance(instrumentation)
+        context.getSharedPreferences("onboarding",0).edit().putBoolean("seen_v1",true).commit()
         device.executeShellCommand("appops set ${context.packageName} SYSTEM_ALERT_WINDOW allow")
         device.executeShellCommand("pm grant ${context.packageName} android.permission.POST_NOTIFICATIONS")
         ScanSessionStore.initialize(context)

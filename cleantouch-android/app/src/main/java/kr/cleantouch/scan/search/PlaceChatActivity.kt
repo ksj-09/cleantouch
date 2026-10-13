@@ -1,159 +1,162 @@
 package kr.cleantouch.scan.search
 
+import android.app.Activity
 import android.content.Intent
-import android.graphics.*
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Bundle
-import android.view.MotionEvent
-import android.view.View
+import android.os.Build
+import android.provider.Settings
+import android.Manifest
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
-import kr.cleantouch.scan.capture.FloatingScanService
-import kr.cleantouch.scan.capture.VideoFrameCropper
-import kr.cleantouch.scan.capture.PointObjectMasker
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.File
+import kr.cleantouch.scan.MobileTheme
+import kr.cleantouch.scan.capture.*
+import kotlinx.coroutines.*
 
-class PlaceChatActivity : ComponentActivity() {
+class PlaceChatActivity:ComponentActivity() {
+    companion object {var foreground=false;private set}
     private var restoreWidget=false
-    override fun onResume(){super.onResume();FloatingScanService.hide(this)}
+    override fun onResume(){super.onResume();foreground=true;FloatingScanService.hide(this)}
+    override fun onPause(){foreground=false;super.onPause()}
     override fun onDestroy(){if(isFinishing&&restoreWidget&&FloatingScanService.running)FloatingScanService.show(this);super.onDestroy()}
-    override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);restoreWidget=intent.getBooleanExtra("restoreWidget",false)
-        setContent { MaterialTheme(colorScheme=darkColorScheme(primary=Color(0xFF73DFC1),background=Color(0xFF10242D),surface=Color(0xFF19313C))){Chat()} }
+    override fun onNewIntent(intent:Intent){super.onNewIntent(intent);setIntent(intent);receive(intent)}
+    private fun receive(intent:Intent){restoreWidget=intent.getBooleanExtra("restoreWidget",false);intent.getStringExtra("scene")?.let {MobileChatController.attachPrivate(it,intent.getBooleanExtra("product",false))}}
+    override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);MobileChatController.initialize(this);if(savedInstanceState==null)receive(intent)
+        setContent {MobileTheme {Chat()}}
     }
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable private fun Chat(){
-        var source by remember { mutableStateOf<Bitmap?>(null) };var crop by remember { mutableStateOf<Bitmap?>(null) }
-        var bounds by remember { mutableStateOf<Rect?>(null) };var preview by remember { mutableStateOf(false) }
-        var busy by remember { mutableStateOf(false) };var error by remember { mutableStateOf("") };var input by remember { mutableStateOf("") }
-        val history=remember { mutableStateListOf<PlaceChatMessage>() };val answers=remember { mutableStateMapOf<Int,List<PlaceCandidate>>() }
-        val listState=rememberLazyListState()
-        LaunchedEffect(history.size,busy){if(history.isNotEmpty()){withFrameNanos{};listState.animateScrollToItem(history.size+if(busy)1 else 0)}}
-        val scope=rememberCoroutineScope()
-        var productMode by remember { mutableStateOf(intent.getBooleanExtra("product",false)) }
-        var picking by remember { mutableStateOf(false) }
-        var shoppingQuery by remember { mutableStateOf("") }
-        var selectionGeneration by remember { mutableStateOf(0) }
-        fun productTap(x:Float,y:Float){val bitmap=source?:return;if(busy)return;val token=++selectionGeneration;busy=true;error=""
-            scope.launch {try{
-                val selected=withContext(Dispatchers.Default){PointObjectMasker(this@PlaceChatActivity).use { it.isolate(bitmap,x,y) }}?:kotlin.error("상품 경계를 찾지 못했어요. 상품 가운데를 다시 눌러 주세요.")
-                if(token!=selectionGeneration){selected.recycle();return@launch}
-                val white=Bitmap.createBitmap(selected.width,selected.height,Bitmap.Config.ARGB_8888);Canvas(white).apply {drawColor(android.graphics.Color.WHITE);drawBitmap(selected,0f,0f,null)};selected.recycle()
-                crop=white;picking=false;preview=false;history.clear();answers.clear();shoppingQuery=""
-                history.add(PlaceChatMessage("user","이 선택 상품을 분석하고 검색을 도와줘."))
-                val result=PlaceChatRepository.identifyProduct(white);shoppingQuery=result.query
-                history.add(PlaceChatMessage("model","${result.label} · ${result.reason}"))
-            }catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e;if(token==selectionGeneration)error=e.message?:"상품 분석에 실패했어요."}finally{if(token==selectionGeneration)busy=false}}
+        val state by MobileChatController.state.collectAsState();val chat=state.conversation
+        val scope=rememberCoroutineScope();val drawer=rememberDrawerState(DrawerValue.Closed)
+        val list=rememberLazyListState();var shareConsent by rememberSaveable {mutableStateOf(false)}
+        var deleting by remember {mutableStateOf<String?>(null)};var selecting by remember {mutableStateOf(false)}
+        var guide by rememberSaveable {mutableStateOf(false)};var more by remember {mutableStateOf(false)}
+        val photo by produceState<Bitmap?>(null,chat.photo){value=withContext(Dispatchers.IO){if(chat.photo.isBlank())null else BitmapFactory.decodeFile(chat.photo)}}
+        val picker=rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()){uri->if(uri!=null)MobileChatController.attach(uri)}
+        fun conversationText()=chat.messages.joinToString("\n\n"){"${if(it.role=="user") "나" else "CleanTouch AI"}: ${it.text}"}
+        fun shareConversation(){val text=conversationText();if(text.isBlank()){android.widget.Toast.makeText(this,"공유할 대화가 아직 없어요.",android.widget.Toast.LENGTH_SHORT).show();return};startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,text),"대화 공유"))}
+        fun copyConversation(){val text=conversationText();if(text.isBlank()){android.widget.Toast.makeText(this,"복사할 대화가 아직 없어요.",android.widget.Toast.LENGTH_SHORT).show();return};getSystemService(android.content.ClipboardManager::class.java).setPrimaryClip(android.content.ClipData.newPlainText("CleanTouch 대화",text));android.widget.Toast.makeText(this,"대화를 복사했어요.",android.widget.Toast.LENGTH_SHORT).show()}
+        val projection=rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()){result->
+            if(result.resultCode==Activity.RESULT_OK&&result.data!=null){if(FloatingScanService.running)FloatingScanService.stop(this);AiScreenShareService.start(this,result.resultCode,result.data!!)}
         }
-        fun request(){if(busy||crop==null||history.lastOrNull()?.role!="user")return
-            busy=true;error=""
-            scope.launch { try { val result=PlaceChatRepository.reply(crop!!,history.toList());history.add(PlaceChatMessage("model",result.answer.take(3000)));answers[history.lastIndex]=result.places }
-                catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e;error=if(e is java.net.ConnectException||e is java.net.UnknownHostException)"AI 분석에 연결하지 못했어요. 인터넷과 서비스 상태를 확인해 주세요." else e.message?:"분석에 실패했어요."}
-                finally{busy=false} }
-        }
-        fun select(){val bitmap=source?:return;val box=bounds?:return
-            crop=Bitmap.createBitmap(bitmap,box.left,box.top,box.width(),box.height());preview=false
-            if(productMode){history.clear();answers.clear();shoppingQuery="";history.add(PlaceChatMessage("user","이 선택 상품을 분석하고 검색을 도와줘."));busy=true;error=""
-                scope.launch {try{val result=PlaceChatRepository.identifyProduct(crop!!);shoppingQuery=result.query;history.add(PlaceChatMessage("model","${result.label} · ${result.reason}"))}catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e;error=e.message?:"상품 분석에 실패했어요."}finally{busy=false}};return
-            }
-            history.clear();answers.clear();history.add(PlaceChatMessage("user",if(productMode)"이 상품을 분석하고 검색을 도와줘." else "이 장소 분석해줘. 사진에 실제로 보이는 단서와 장소 후보를 설명해줘."));request()
-        }
-        LaunchedEffect(Unit){try {
-            val path=intent.getStringExtra("scene")?:kotlin.error("분석할 영상 장면이 없어요. 위젯에서 장소 분석을 눌러 주세요.")
-            val file=File(path);require(file.canonicalPath.startsWith(filesDir.canonicalPath+File.separator)){"영상 장면을 읽을 수 없어요."}
-            val bitmap=withContext(Dispatchers.IO){BitmapFactory.decodeFile(file.absolutePath)}?:kotlin.error("영상 이미지를 읽지 못했어요.")
-            source=bitmap
-            if(intent.getBooleanExtra("product",false)){
-                crop=bitmap;bounds=Rect(0,0,bitmap.width,bitmap.height);preview=false
-                history.add(PlaceChatMessage("user","이 선택 상품을 분석하고 검색을 도와줘."))
-                history.add(PlaceChatMessage("model","${intent.getStringExtra("productLabel").orEmpty().take(30)} · ${intent.getStringExtra("productReason").orEmpty().take(350)}"))
-            }else{
-                val detected=withContext(Dispatchers.Default){VideoFrameCropper.find(bitmap,intent.getIntExtra("topInset",0),intent.getIntExtra("bottomInset",0))}
-                bounds=detected.bounds;if(detected.confident&&!intent.getBooleanExtra("chooseMode",false))select() else preview=true
-            }
-        }catch(e:Exception){error=e.message?:"영상 장면을 읽지 못했어요."}}
-        Surface(Modifier.fillMaxSize()) {
-            Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text("✦ CleanTouch AI",fontSize=21.sp);TextButton(onClick={finish()}){Text("영상으로 돌아가기")}}
-                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-                    OutlinedButton(onClick={productMode=true;picking=true;preview=false;error=""},enabled=!busy&&source!=null){Text("상품 분석")}
-                    OutlinedButton(onClick={productMode=false;picking=false;preview=true;shoppingQuery="";error=""},enabled=!busy&&source!=null){Text("장소 분석")}
+        fun requestProjection(){projection.launch(getSystemService(MediaProjectionManager::class.java).createScreenCaptureIntent())}
+        val overlayPermission=rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()){requestProjection()}
+        fun prepareShare(){if(Settings.canDrawOverlays(this))requestProjection()else overlayPermission.launch(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,Uri.parse("package:$packageName")))}
+        val notifications=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){prepareShare()}
+        LaunchedEffect(chat.id,chat.messages.size,state.busy){if(chat.messages.isNotEmpty()){withFrameNanos{};list.animateScrollToItem((list.layoutInfo.totalItemsCount-1).coerceAtLeast(0))}}
+        if(shareConsent)AlertDialog(onDismissRequest={shareConsent=false},title={Text("AI와 화면 함께 보기")},text={Text("직접 허용한 화면의 바뀌는 장면을 AI에 보내고, 질문에 답합니다. 마이크·소리·실제 위치는 보내지 않아요.\n\nAndroid 권한창에서는 YouTube 같은 앱 하나를 선택하는 것을 권장합니다. 전체 화면을 선택하면 알림 등 다른 화면도 포함될 수 있어요. 작은 AI 버튼을 쓰려면 ‘다른 앱 위에 표시’를 허용하세요.\n\n장면 모으기는 멈추고 기존 장면과 상품 목록은 보관합니다. 공유 종료 버튼이나 알림에서 언제든 끌 수 있어요.")},confirmButton={TextButton(onClick={shareConsent=false;if(Build.VERSION.SDK_INT>=33)notifications.launch(Manifest.permission.POST_NOTIFICATIONS)else prepareShare()}){Text("권한 확인하고 공유")}},dismissButton={TextButton(onClick={shareConsent=false}){Text("취소")}})
+        if(deleting!=null)AlertDialog(onDismissRequest={deleting=null},title={Text("이 대화를 삭제할까요?")},text={Text("대화와 첨부 사진이 이 기기에서 삭제됩니다.")},confirmButton={TextButton(onClick={MobileChatController.delete(deleting!!);deleting=null}){Text("삭제")}},dismissButton={TextButton(onClick={deleting=null}){Text("취소")}})
+        if(guide)AlertDialog(onDismissRequest={guide=false},title={Text("필요할 때만, 가볍게")},text={Text("① 사진 없이 편하게 질문하세요.\n② 사진 업로드는 현재 대화에 첨부됩니다.\n③ 화면 함께 보기를 허용하고 영상 앱으로 돌아가세요. 작은 AI 버튼이나 알림을 누르면 질문할 수 있어요.\n④ 상품 선택은 사진 속 물건을 터치해 분석합니다. 구매 후보의 사진은 판매 페이지에서 비교하세요.\n⑤ 왼쪽 내 대화에서 이전 대화를 이어갈 수 있어요.")},confirmButton={TextButton(onClick={guide=false}){Text("알겠어요")}})
+        if(selecting&&photo!=null)ProductSelection(photo!!,onDismiss={selecting=false},selected={selected->selecting=false;MobileChatController.selected(selected)})
+        ModalNavigationDrawer(drawerState=drawer,drawerContent={
+            ModalDrawerSheet(Modifier.width(290.dp)){
+                Row(Modifier.fillMaxWidth().padding(16.dp),verticalAlignment=Alignment.CenterVertically){Text("내 대화",fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));TextButton(onClick={scope.launch{drawer.close()}}){Text("닫기")}}
+                Button(onClick={MobileChatController.newConversation()},modifier=Modifier.fillMaxWidth().padding(horizontal=16.dp)){Text("＋ 새 대화")}
+                LazyColumn(Modifier.weight(1f).padding(8.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
+                    items(state.chats.sortedByDescending{it.updated},key={it.id}){c->
+                        Surface(shape=RoundedCornerShape(16.dp),color=if(c.id==chat.id)MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface){Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+                            Column(Modifier.weight(1f).clickable{MobileChatController.choose(c.id)}.padding(14.dp)){
+                                Text(c.title,maxLines=2,fontWeight=FontWeight.Medium);Text(java.text.SimpleDateFormat("M월 d일",java.util.Locale.KOREA).format(java.util.Date(c.updated)),fontSize=11.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                            };TextButton(onClick={deleting=c.id}){Text("삭제",fontSize=12.sp)}
+                        }}
+                    }
                 }
-                Text(if(productMode)"선택한 상품 사진으로 AI에게 질문합니다. 실제 가격·재고는 판매 페이지에서 확인하세요." else "선택한 영상 영역만 Gemini로 전송합니다. 실제 위치 정보는 보내지 않으며 장소는 사진 기반 추정입니다.",fontSize=12.sp)
-                if(picking&&source!=null){
-                    Text("사진에서 궁금한 상품 가운데를 눌러 주세요. AI가 상품 부분을 분리해 분석합니다.")
-                    Box(Modifier.fillMaxWidth().weight(1f).semantics {contentDescription="상품 터치 선택 화면"}.pointerInput(source){
-                        detectTapGestures {point->val bitmap=source?:return@detectTapGestures
-                            val scale=minOf(size.width.toFloat()/bitmap.width,size.height.toFloat()/bitmap.height)
-                            val x=(point.x-(size.width-bitmap.width*scale)/2)/scale/bitmap.width
-                            val y=(point.y-(size.height-bitmap.height*scale)/2)/scale/bitmap.height
-                            if(x in 0f..1f&&y in 0f..1f)productTap(x,y)
-                        }
-                    }){Image(source!!.asImageBitmap(),null,Modifier.fillMaxSize(),contentScale=ContentScale.Fit)}
-                    OutlinedButton(onClick={selectionGeneration++;busy=false;picking=false;preview=true;error=""}){Text("경계 인식이 느리면 상품 영역 직접 선택")}
-                    if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
-                    if(error.isNotBlank())Text(error,color=Color(0xFFFFC57D))
-                }else if(preview&&source!=null){
-                    Text("영상 영역을 확인해 주세요",fontSize=18.sp)
-                    Text("정확한 영상 경계를 자동으로 확인하지 못했어요. 영상만 남도록 드래그한 뒤 분석하세요.",fontSize=12.sp)
-                    AndroidView(factory={CropView(this@PlaceChatActivity,source!!,bounds!!){bounds=it}},modifier=Modifier.fillMaxWidth().weight(1f))
-                    Button(onClick={select()},modifier=Modifier.fillMaxWidth()){Text(if(productMode)"선택한 상품 AI 분석" else "이 영상 영역으로 장소 분석")}
-                }else{
-                    LazyColumn(Modifier.weight(1f),state=listState,verticalArrangement=Arrangement.spacedBy(12.dp)) {
-                        if(crop!=null)item {Image(crop!!.asImageBitmap(),"전송한 영상 영역",Modifier.fillMaxWidth().height(180.dp),contentScale=ContentScale.Fit)}
-                        items(history.indices.toList()){index->val m=history[index]
-                            Surface(color=if(m.role=="user")Color(0xFF214B45) else Color(0xFF203744),shape=MaterialTheme.shapes.medium){Column(Modifier.fillMaxWidth().padding(12.dp)){
-                                Text(if(m.role=="user")"나" else "CleanTouch AI",fontSize=11.sp,color=Color(0xFF73DFC1));Text(m.text,fontSize=15.sp)
-                                answers[index]?.forEach { p->Text(p.evidence,fontSize=12.sp);TextButton(onClick={startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encode(p.name)}")))}){Text("${p.name} · 지도에서 확인")} }
+                Text("대화는 이 기기에 저장됩니다 · 최대 40개",Modifier.padding(18.dp),fontSize=11.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }){
+            Surface(Modifier.fillMaxSize()){
+                Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding().padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+                    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+                        TextButton(onClick={scope.launch{drawer.open()}}){Text("☰",fontSize=23.sp)}
+                        Column(Modifier.weight(1f)){Text("CleanTouch AI",fontSize=20.sp,fontWeight=FontWeight.Bold);Text(chat.title.takeUnless{it=="새 대화"}?:"보고, 물어보고, 찾아보세요",fontSize=11.sp,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1)}
+                        Box{TextButton(onClick={more=true}){Text("•••",fontSize=16.sp)};DropdownMenu(expanded=more,onDismissRequest={more=false}){
+                            DropdownMenuItem(text={Text("대화 공유")},onClick={more=false;shareConversation()})
+                            DropdownMenuItem(text={Text("대화 내용 복사")},onClick={more=false;copyConversation()})
+                            DropdownMenuItem(text={Text(if(state.sharing)"화면 공유 종료" else "화면 함께 보기")},onClick={more=false;if(state.sharing)MobileChatController.stopSharing()else shareConsent=true})
+                            DropdownMenuItem(text={Text("사진 업로드")},onClick={more=false;picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))})
+                            DropdownMenuItem(text={Text("개인정보·사용법")},onClick={more=false;guide=true})
+                        }}
+                        TextButton(onClick={finish()}){Text("닫기")}
+                    }
+                    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                        Button(onClick={if(state.sharing)MobileChatController.stopSharing()else shareConsent=true},modifier=Modifier.weight(1f),colors=if(state.sharing)ButtonDefaults.buttonColors(containerColor=MaterialTheme.colorScheme.errorContainer,contentColor=MaterialTheme.colorScheme.onErrorContainer)else ButtonDefaults.buttonColors()){Text(if(state.sharing)"화면 공유 종료" else "화면 함께 보기",fontSize=13.sp)}
+                        OutlinedButton(onClick={picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))},enabled=!state.busy,modifier=Modifier.weight(1f)){Text("사진 업로드",fontSize=13.sp)}
+                    }
+                    if(state.sharing)Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(if(state.frameAt==0L)"● 공유할 영상 앱을 열어 주세요" else "● 최근 장면을 보며 질문에 답해요",fontSize=11.sp,color=MaterialTheme.colorScheme.primary);TextButton(onClick={moveTaskToBack(true)}){Text("영상으로",fontSize=12.sp)}}
+                    LazyColumn(Modifier.weight(1f).fillMaxWidth(),state=list,verticalArrangement=Arrangement.spacedBy(12.dp),contentPadding=PaddingValues(vertical=8.dp)){
+                        if(photo!=null&&!state.sharing)item {
+                            Surface(shape=RoundedCornerShape(20.dp),color=MaterialTheme.colorScheme.surfaceContainer){Column(Modifier.fillMaxWidth().padding(12.dp)){
+                                Image(photo!!.asImageBitmap(),"첨부한 사진",Modifier.fillMaxWidth().height(180.dp),contentScale=ContentScale.Fit)
+                                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){TextButton(onClick={selecting=true},enabled=!state.busy){Text("상품 터치 · 분석")};TextButton(onClick={MobileChatController.forgetPhoto()},enabled=!state.busy){Text("사진 제거")}}
                             }}
                         }
-                        if(busy)item {Text("사진과 질문을 분석하고 있어요…");LinearProgressIndicator(Modifier.fillMaxWidth())}
+                        if(chat.messages.isEmpty())item {Column(Modifier.padding(vertical=30.dp)){
+                            Text("궁금한 순간에\n말만 걸어보세요.",fontSize=29.sp,lineHeight=38.sp,fontWeight=FontWeight.Bold)
+                            Spacer(Modifier.height(14.dp));Text("사진 없이 대화할 수 있어요. 화면을 함께 보면 영상 속 상품과 장소도 찾아드립니다.",color=MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.height(20.dp));listOf("어떤 기능을 쓸 수 있어?","사진 속 상품을 찾으려면 어떻게 해?").forEach {q->OutlinedButton(onClick={MobileChatController.send(q)},enabled=!state.busy){Text(q,fontSize=13.sp)}}
+                        }}
+                        itemsIndexed(chat.messages){_,m->Row(Modifier.fillMaxWidth(),horizontalArrangement=if(m.role=="user")Arrangement.End else Arrangement.Start){Surface(Modifier.widthIn(max=340.dp),shape=RoundedCornerShape(20.dp),color=if(m.role=="user")MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer){Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+                            Text(if(m.role=="user")"나" else "✦ CleanTouch",fontSize=11.sp,color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold)
+                            androidx.compose.foundation.text.selection.SelectionContainer{Text(m.text,fontSize=15.sp,lineHeight=23.sp)}
+                            m.links.forEach {link->OutlinedButton(onClick={open(link.url)},modifier=Modifier.fillMaxWidth()){Text(link.title,fontSize=12.sp)}}
+                        }}}}
+                        if(state.busy)item{Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){CircularProgressIndicator(Modifier.size(18.dp),strokeWidth=2.dp);Text(state.status,fontSize=12.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)}}
                     }
-                    if(shoppingQuery.isNotBlank())OutlinedButton(onClick={startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://www.google.com/search?tbm=shop&q=${Uri.encode(shoppingQuery)}")))}){Text("$shoppingQuery · 쇼핑 검색")}
-                    if(error.isNotBlank())Text(error,color=Color(0xFFFFC57D),fontSize=13.sp)
-                    if(!busy&&history.lastOrNull()?.role=="user")TextButton(onClick={request()}){Text("다시 시도")}
-                    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-                        OutlinedTextField(input,{input=it.take(1500)},Modifier.weight(1f),placeholder={Text("궁금한 내용을 더 물어보세요")},enabled=!busy&&crop!=null&&history.lastOrNull()?.role=="model",maxLines=3)
-                        Button(onClick={if(history.size>=13){error="대화가 길어졌어요. 새 대화를 시작해 주세요."}else if(input.isNotBlank()){history.add(PlaceChatMessage("user",input.trim()));input="";request()}},enabled=!busy&&input.isNotBlank()&&history.lastOrNull()?.role=="model"){Text("전송")}
+                    if(state.error.isNotBlank())Surface(shape=RoundedCornerShape(12.dp),color=MaterialTheme.colorScheme.errorContainer){Column(Modifier.padding(12.dp)){
+                        Text(state.error,fontSize=12.sp);Row{TextButton(onClick={MobileChatController.retry()},enabled=!state.busy){Text("다시 시도")};TextButton(onClick={MobileChatController.clearError()}){Text("닫기")}}
+                    }}
+                    if(state.busy)TextButton(onClick={MobileChatController.cancel()}){Text("답변 멈추기")}
+                    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                        OutlinedTextField(chat.draft,{MobileChatController.draft(it)},Modifier.weight(1f),placeholder={Text("이 가방 찾아줘, 여기는 어디야?",fontSize=13.sp)},maxLines=4,shape=RoundedCornerShape(20.dp),enabled=state.loaded&&!state.busy)
+                        Button(onClick={MobileChatController.send()},enabled=state.loaded&&!state.busy&&chat.draft.isNotBlank(),modifier=Modifier.height(56.dp)){Text("전송")}
                     }
-                    TextButton(onClick={if(!busy&&source!=null){history.clear();answers.clear();preview=true;error=""}},enabled=!busy&&source!=null){Text("영역 다시 선택 · 새 대화")}
+                    Text(if(state.sharing)"공유 중 · 마이크·소리·위치는 보내지 않아요" else if(photo!=null)"첨부한 사진으로 대화 · 화면 공유 꺼짐" else "일반 대화 · 화면 공유 꺼짐 · 기록은 기기에서 암호화",fontSize=10.sp,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(bottom=6.dp))
                 }
             }
         }
     }
-    private class ProductTapView(context:android.content.Context,val image:Bitmap,val tapped:(Float,Float)->Unit):View(context){
-        init { contentDescription="상품 터치 선택 화면" }
-        private val paint=Paint(Paint.ANTI_ALIAS_FLAG)
-        private fun scale()=minOf(width.toFloat()/image.width,height.toFloat()/image.height)
-        override fun onDraw(canvas:Canvas){val s=scale();canvas.save();canvas.clipRect(0,0,width,height);canvas.drawColor(android.graphics.Color.BLACK);canvas.save();canvas.translate((width-image.width*s)/2,(height-image.height*s)/2);canvas.scale(s,s);canvas.drawBitmap(image,0f,0f,paint);canvas.restore();canvas.restore()}
-        override fun onTouchEvent(event:MotionEvent):Boolean{if(event.actionMasked==MotionEvent.ACTION_UP){val s=scale();val x=(event.x-(width-image.width*s)/2)/s/image.width;val y=(event.y-(height-image.height*s)/2)/s/image.height;if(x in 0f..1f&&y in 0f..1f)tapped(x,y)};return true}
-    }
-    private class CropView(context:android.content.Context,val image:Bitmap,initial:Rect,val changed:(Rect)->Unit):View(context){
-        init {contentDescription="분석 영역 선택 화면"}
-        private var box=Rect(initial);private val paint=Paint(Paint.ANTI_ALIAS_FLAG);private var start=PointF()
-        private fun scale()=minOf(width.toFloat()/image.width,height.toFloat()/image.height)
-        private fun point(event:MotionEvent):PointF{val s=scale();return PointF(((event.x-(width-image.width*s)/2)/s).coerceIn(0f,image.width.toFloat()-1),((event.y-(height-image.height*s)/2)/s).coerceIn(0f,image.height.toFloat()-1))}
-        override fun onDraw(canvas:Canvas){val s=scale();canvas.save();canvas.clipRect(0,0,width,height);canvas.drawColor(android.graphics.Color.BLACK);canvas.save();canvas.translate((width-image.width*s)/2,(height-image.height*s)/2);canvas.scale(s,s);canvas.drawBitmap(image,0f,0f,paint);paint.color=android.graphics.Color.rgb(115,223,193);paint.style=Paint.Style.STROKE;paint.strokeWidth=3/s;canvas.drawRect(box,paint);paint.style=Paint.Style.FILL;canvas.restore();canvas.restore()}
-        override fun onTouchEvent(event:MotionEvent):Boolean{when(event.actionMasked){MotionEvent.ACTION_DOWN->{start=point(event);parent.requestDisallowInterceptTouchEvent(true)};MotionEvent.ACTION_MOVE,MotionEvent.ACTION_UP->{val p=point(event);val next=Rect(minOf(start.x,p.x).toInt(),minOf(start.y,p.y).toInt(),maxOf(start.x,p.x).toInt()+1,maxOf(start.y,p.y).toInt()+1);if(next.width()>20&&next.height()>20){box=next;changed(Rect(next));invalidate()}}};return true}
+    private fun open(url:String){runCatching{val safe=MobileInputPolicy.safeUrl(url);require(safe.isNotBlank());startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(safe)))}.onFailure{android.widget.Toast.makeText(this,"안전하게 열 수 없는 링크예요.",android.widget.Toast.LENGTH_SHORT).show()}}
+}
+
+@Composable private fun ProductSelection(image:Bitmap,onDismiss:()->Unit,selected:(Bitmap)->Unit){
+    val context=androidx.compose.ui.platform.LocalContext.current;val scope=rememberCoroutineScope()
+    var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf("")};var mask by remember{mutableStateOf<Bitmap?>(null)}
+    androidx.compose.ui.window.Dialog(onDismissRequest={if(!busy)onDismiss()},properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)){
+        Surface(Modifier.fillMaxSize().safeDrawingPadding(),color=MaterialTheme.colorScheme.background){Column(Modifier.padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+            Text("상품 안쪽을 한 번 누르세요",fontSize=21.sp,fontWeight=FontWeight.Bold)
+            Text("선택한 부분을 확인한 뒤 AI에 보냅니다.",fontSize=13.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Box(Modifier.weight(1f).fillMaxWidth().pointerInput(image,busy,mask){detectTapGestures{point->if(busy||mask!=null)return@detectTapGestures
+                val scale=minOf(size.width.toFloat()/image.width,size.height.toFloat()/image.height);val x=(point.x-(size.width-image.width*scale)/2)/scale/image.width;val y=(point.y-(size.height-image.height*scale)/2)/scale/image.height
+                if(x !in 0f..1f||y !in 0f..1f)return@detectTapGestures
+                busy=true;error="";scope.launch{try{mask=withContext(Dispatchers.Default){PointObjectMasker(context.applicationContext).use{it.isolate(image,x,y)}};if(mask==null)error="윤곽을 찾지 못했어요. 상품의 안쪽을 다시 눌러 주세요."}catch(e:Exception){if(e is CancellationException)throw e;error="상품 선택에 실패했어요. 다시 눌러 주세요."}finally{busy=false}}
+            }}){Image((mask?:image).asImageBitmap(),"상품 터치 선택 화면",Modifier.fillMaxSize(),contentScale=ContentScale.Fit)}
+            if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
+            if(error.isNotBlank())Text(error,color=MaterialTheme.colorScheme.error,fontSize=12.sp)
+            if(mask!=null)Button(onClick={val chosen=mask!!;val white=Bitmap.createBitmap(chosen.width,chosen.height,Bitmap.Config.ARGB_8888);Canvas(white).apply{drawColor(android.graphics.Color.WHITE);drawBitmap(chosen,0f,0f,null)};selected(white)},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("이 상품으로 AI 분석")}
+            Row{TextButton(onClick={mask=null},enabled=!busy&&mask!=null){Text("다시 선택")};TextButton(onClick=onDismiss,enabled=!busy){Text("취소")}}
+        }}
     }
 }

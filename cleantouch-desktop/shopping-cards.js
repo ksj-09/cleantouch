@@ -1,5 +1,5 @@
 (()=>{
- const queryOf=value=>typeof value==='string'?value.replace(/[\u0000-\u001f]/g,'').trim().slice(0,60):'';
+ const queryOf=value=>window.cleanTouchShoppingProviders?.clean(value)??(typeof value==='string'?value.replace(/[\u0000-\u001f]/g,'').trim().slice(0,60):'');
  const toBlob=image=>new Blob([Uint8Array.from(atob(image),c=>c.charCodeAt(0))],{type:'image/jpeg'});
  async function crop(image,box){
   if(!image)return '';
@@ -22,7 +22,10 @@
   const note=document.createElement('p');note.textContent=card.reason||'보이는 색·형태를 기준으로 찾습니다. 동일 상품인지는 판매 사진으로 확인하세요.';box.append(note);
   for(const candidate of card.candidates||[]){const a=document.createElement('button');a.className='chat-map secondary candidate-link';a.textContent=candidate.name+' ↗';a.title=candidate.features||candidate.sourceTitle||'';a.onclick=()=>bridge.openLink(candidate.url);box.append(a);}
   const actions=document.createElement('div');actions.className='chat-shopping-actions';
-  const shopping=document.createElement('button');shopping.className='chat-map primary';shopping.textContent='비슷한 상품 쇼핑 검색';shopping.onclick=()=>bridge.openLink('https://www.google.com/search?tbm=shop&q='+encodeURIComponent(query));actions.append(shopping);
+  const providerTitle=document.createElement('span');providerTitle.className='chat-provider-title';providerTitle.textContent='여러 쇼핑몰에서 비교';actions.append(providerTitle);
+  const providerGrid=document.createElement('div');providerGrid.className='chat-provider-grid';
+  for(const provider of window.cleanTouchShoppingProviders.providers(query)){const shopping=document.createElement('button');shopping.className=provider.id==='naver'?'chat-map primary':'chat-map secondary';shopping.textContent=provider.label;shopping.onclick=()=>bridge.openLink(provider.url);providerGrid.append(shopping);}
+  actions.append(providerGrid);
   if(card.image){const lens=document.createElement('button');lens.className='chat-map secondary';lens.textContent='사진으로 비교 · Lens';lens.onclick=async()=>{lens.disabled=true;try{const blob=toBlob(card.image);await bridge.searchVisual(new Uint8Array(await blob.arrayBuffer()));}catch(error){document.getElementById('chat-error').textContent=error.message;}finally{lens.disabled=false;}};actions.append(lens);}
   box.append(actions);item.append(box);return box;
  }

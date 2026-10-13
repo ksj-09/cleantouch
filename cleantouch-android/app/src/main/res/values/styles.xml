@@ -2,9 +2,9 @@
 <resources>
     <style name="Base.Theme.CleanTouch" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:statusBarColor">#12121F</item>
-        <item name="android:navigationBarColor">#12121F</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">#FBF9F6</item>
+        <item name="android:navigationBarColor">#FBF9F6</item>
     </style>
     <style name="Theme.CleanTouch" parent="Base.Theme.CleanTouch" />
     <style name="Theme.CleanTouch.Transparent" parent="android:style/Theme.Material.Light.NoActionBar">

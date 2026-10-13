@@ -18,5 +18,14 @@ public class VideoFixtureActivity extends Activity {
         image.setScaleType(ImageView.ScaleType.FIT_CENTER);
         image.setBackgroundColor(Color.BLACK);
         setContentView(image);
+        // A video fixture must keep producing Surface frames even when its product stays still.
+        image.post(new Runnable() {
+            private boolean dim = false;
+            @Override public void run() {
+                dim = !dim;
+                image.setAlpha(dim ? 0.99f : 1.0f);
+                image.postDelayed(this, 250);
+            }
+        });
     }
 }

@@ -17,57 +17,25 @@ class LocalSceneAnalyzer(private val context: Context) {
     suspend fun analyze() = withContext(Dispatchers.Default) {
         val snapshot = ScanSessionStore.state.value
         require(snapshot.scenes.isNotEmpty()) { "모아둔 장면이 없어요. 영상을 잠시 본 뒤 다시 눌러 주세요." }
-        val detector = ObjectDetector.createFromOptions(context, ObjectDetector.ObjectDetectorOptions.builder()
-            .setBaseOptions(BaseOptions.builder().setModelAssetPath("product_detector.tflite").build())
-            .setMaxResults(12).setScoreThreshold(.3f).build())
-        try {
-            ScanSessionStore.update { it.copy(phase = ScanPhase.ANALYZING, totalFrames = it.scenes.size, message = "기기에서 상품 후보를 찾고 있어요.") }
-            for (scene in snapshot.scenes) {
-                ensureActive()
-                if (scene.timeMs in ScanSessionStore.state.value.completedFrames) continue
-                val bitmap = BitmapFactory.decodeFile(scene.path) ?: error("저장한 장면을 읽지 못했어요.")
-                try {
-                    val candidates = mutableListOf<Candidate>()
-                    // A small item in a tall phone frame can disappear at the model's 320px input.
-                    // Inspect overlapping tiles too, then suppress duplicate boxes in source coordinates.
-                    val regions = listOf(Rect(0, 0, bitmap.width, bitmap.height)) + listOf(0f, .35f).flatMap { x ->
-                        listOf(0f, .35f).map { y -> FocusRect(x, y, x + .65f, y + .65f).toBitmapRect(bitmap.width, bitmap.height) }
-                    }
-                    for (region in regions) {
-                        ensureActive()
-                        val tile = Bitmap.createBitmap(bitmap, region.left, region.top, region.width(), region.height())
-                        val image = BitmapImageBuilder(tile.copy(Bitmap.Config.ARGB_8888, false)).build()
-                        if (tile !== bitmap) tile.recycle()
-                        val result = try { detector.detect(image) } finally { image.close() }
-                        for (detection in result.detections()) {
-                            val category = detection.categories().maxByOrNull { it.score() } ?: continue
-                            if (category.categoryName() in excluded) continue
-                            val box = detection.boundingBox()
-                            val rect = FocusRect((box.left + region.left) / bitmap.width, (box.top + region.top) / bitmap.height,
-                                (box.right + region.left) / bitmap.width, (box.bottom + region.top) / bitmap.height).toBitmapRect(bitmap.width, bitmap.height)
-                            candidates += Candidate(category.categoryName(), category.score(), rect)
-                        }
-                    }
-                    val selected = mutableListOf<Candidate>()
-                    for (candidate in candidates.sortedByDescending { it.score }) {
-                        if (selected.any { it.category == candidate.category && overlap(it.bounds, candidate.bounds) > .45f }) continue
-                        selected += candidate
-                    }
-                    for (candidate in selected) {
-                        ensureActive()
-                        val rect = candidate.bounds
-                        if (rect.width() < 20 || rect.height() < 20) continue
-                        val crop = Bitmap.createBitmap(bitmap, rect.left, rect.top, rect.width(), rect.height())
-                        try { storeProduct(crop, names[candidate.category] ?: candidate.category, scene.timeMs) }
-                        finally { if (crop !== bitmap) crop.recycle() }
-                    }
-                    ScanSessionStore.update { it.copy(completedFrames = it.completedFrames + scene.timeMs) }
-                } finally { bitmap.recycle() }
-            }
-            ScanSessionStore.update { it.copy(phase = ScanPhase.COMPLETE, message = "모아둔 장면 분석을 마쳤어요. 자동 인식이 놓친 물건은 아래 장면을 열어 직접 누르세요.") }
-        } finally { detector.close() }
+        ScanSessionStore.update { it.copy(phase = ScanPhase.ANALYZING, totalFrames = snapshot.scenes.size, message = "앞뒤 장면을 함께 보며 AI로 상품을 확인하고 있어요.") }
+        for ((index,scene) in snapshot.scenes.withIndex()) {
+            ensureActive()
+            if (scene.timeMs in ScanSessionStore.state.value.completedFrames) continue
+            val bitmap = BitmapFactory.decodeFile(scene.path) ?: error("저장한 장면을 읽지 못했어요.")
+            try {
+                val neighbors=listOfNotNull(snapshot.scenes.getOrNull(index-1),snapshot.scenes.getOrNull(index+1))
+                    .filter { kotlin.math.abs(it.timeMs-scene.timeMs)<=6000 && snapshot.timeMarks[it.timeMs]?.key==snapshot.timeMarks[scene.timeMs]?.key }.map {it.path}
+                for(item in MobileObjectRepository.locate(bitmap,neighbors)) {
+                    ensureActive()
+                    val box=item.bounds
+                    val crop=Bitmap.createBitmap(bitmap,box.left,box.top,box.width(),box.height())
+                    try {storeProduct(crop,item.label,scene.timeMs)} finally {if(crop!==bitmap)crop.recycle()}
+                }
+                ScanSessionStore.update {it.copy(completedFrames=it.completedFrames+scene.timeMs)}
+            } finally {bitmap.recycle()}
+        }
+        ScanSessionStore.update {it.copy(phase=ScanPhase.COMPLETE,message="모아둔 장면 분석을 마쳤어요. 놓친 상품은 장면을 열어 직접 선택할 수 있어요.")}
     }
-
     companion object {
         fun productRegionsAt(context: Context, bitmap: Bitmap, x: Float, y: Float): List<Rect> {
             val detector = ObjectDetector.createFromOptions(context, ObjectDetector.ObjectDetectorOptions.builder()

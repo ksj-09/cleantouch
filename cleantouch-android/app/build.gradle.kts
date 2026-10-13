@@ -13,8 +13,8 @@ android {
         minSdk = 26
         targetSdk = 36
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 22
-        versionName = "0.4.8"
+        versionCode = 23
+        versionName = "0.5.0"
         val chatUrl = providers.gradleProperty("CLEANTOUCH_CHAT_URL").orElse("https://cleantouch-place-ai-20261006.netlify.app")
         buildConfigField("String", "PLACE_CHAT_URL", "\"${chatUrl.get()}\"")
         ndk {
@@ -69,6 +69,8 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.11.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("androidx.exifinterface:exifinterface:1.4.1")
     implementation("com.google.mediapipe:tasks-vision:1.0.0")
     implementation("org.opencv:opencv:4.13.0")
     implementation("com.google.mlkit:text-recognition-korean:16.0.1")
