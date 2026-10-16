@@ -1,0 +1,17 @@
+{
+  "name": "cleantouch-project",
+  "private": true,
+  "scripts": {
+    "dev:web": "npm run dev --prefix cleantouch",
+    "build:web": "npm run build:all --prefix cleantouch",
+    "dev:search": "npm run dev --prefix cleantouch-search-api",
+    "build:search": "npm run build --prefix cleantouch-search-api",
+    "test:search": "npm test --prefix cleantouch-search-api",
+    "start:desktop": "npm run start --prefix cleantouch-desktop",
+    "build:windows": "npm run dist:win --prefix cleantouch-desktop",
+    "serve:downloads": "node scripts/serve-cleantouch-downloads.mjs",
+    "serve:apk": "node scripts/serve-cleantouch-apk.mjs",
+    "pilot:catalogue": "npm run pilot:catalogue --prefix cleantouch-search-api",
+    "check:catalogue": "npm run catalogue:evaluate --prefix cleantouch-search-api"
+  }
+}

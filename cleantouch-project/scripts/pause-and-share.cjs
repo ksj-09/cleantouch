@@ -1,0 +1,10 @@
+const fs=require('fs'),path=require('path');const base=path.resolve(__dirname,'../cleantouch-desktop');let p=path.join(base,'index.html'),s=fs.readFileSync(p,'utf8');
+s=s.replaceAll('스캔 계속하기','스캔 다시 시작').replace('장소 분석 · AI에게 물어보기','AI에게 물어보기').replace('id="chat-place" class="primary">장소 분석','id="chat-place" class="primary">현재 화면 공유');
+s=s.replace('스캔 멈춤을 누르면 장면 수집을 멈추고 이미 모은 장면은 끝까지 분석합니다.','스캔 멈춤으로 수집을 일시정지하고, 스캔 다시 시작으로 이어갈 수 있습니다. 이미 모은 장면은 끝까지 분석합니다.');fs.writeFileSync(p,s);
+p=path.join(base,'place-chat.js');s=fs.readFileSync(p,'utf8');
+s=s.replace("history.at(-1)?.role!=='model'","history.at(-1)?.role==='user'");
+s=s.replace("el('chat-source').value!=='import'&&phase==='capturing'","el('chat-source').value!=='import'&&stream");
+s=s.replace("el('widget-place').onclick=analyze","el('widget-place').onclick=open");
+s=s.replace("const p=message('user','이 장소 분석해줘')","const p=message('user','공유한 현재 장면')");
+s=s.replace("history=[{role:'user',text:'이 장소 분석해줘. 사진에 실제로 보이는 단서와 장소 후보를 설명해줘.'}];await reply();","history=[];message('model','이 화면에서 궁금한 상품이나 장소를 물어보세요. 예: 이 가방 찾아줘, 여기는 어디야?');el('chat-error').textContent='장면이 준비됐어요. 질문을 보내면 AI에 함께 전달됩니다.';controls();input.focus();");
+fs.writeFileSync(p,s);

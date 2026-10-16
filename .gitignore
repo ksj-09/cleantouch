@@ -8,6 +8,8 @@ build/
 *.aab
 cleantouch/dist-sdk/
 cleantouch-desktop/vendor/tasks-vision/
+cleantouch-project/cleantouch/dist-sdk/
+cleantouch-project/cleantouch-desktop/vendor/tasks-vision/
 .env
 .env.*
 !.env.example
@@ -16,23 +18,38 @@ cleantouch-desktop/vendor/tasks-vision/
 *.log
 cleantouch/data/*.ndjson
 cleantouch/data/*.tmp
+cleantouch-project/cleantouch/data/*.ndjson
+cleantouch-project/cleantouch/data/*.tmp
 
 # Local Netlify folder
 .netlify
 cleantouch-desktop/dist-product/
 cleantouch-desktop/dist-search/
 cleantouch-desktop/dist-search-final/
+cleantouch-project/cleantouch-desktop/dist-product/
+cleantouch-project/cleantouch-desktop/dist-search/
+cleantouch-project/cleantouch-desktop/dist-search-final/
 
 cleantouch-desktop/dist-chat-modes/
+cleantouch-project/cleantouch-desktop/dist-chat-modes/
 
 cleantouch-desktop/dist-stability/
+cleantouch-project/cleantouch-desktop/dist-stability/
 
 cleantouch-desktop/dist-import/
+cleantouch-project/cleantouch-desktop/dist-import/
 
 # Generated releases and local verification data
 cleantouch-desktop/dist-*/
+cleantouch-project/cleantouch-desktop/dist-*/
 artifacts/
 *.jks
 *.keystore
 *.p12
 *.pfx
+
+# Local transfer archives, release leftovers, and Office temporary locks
+build-*/
+release-*/
+~$*
+*.bundle

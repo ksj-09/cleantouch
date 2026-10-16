@@ -1,0 +1,161 @@
+// Report snapshot. This file does not build, deploy or modify application code.
+const path=require('node:path'),fs=require('node:fs'),PptxGenJS=require('pptxgenjs');
+const out=__dirname,stem='CleanTouch_사업화_현황진단_및_확장전략_20261015';
+const refs={
+ S1:['OpenAI · MCP server and UI quickstart','https://developers.openai.com/plugins/build/app-quickstart'],
+ S2:['Claude · Custom connectors / remote MCP','https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp'],
+ S3:['Android · Media projection','https://developer.android.com/media/grow/media-projection'],
+ S4:['Apple · ReplayKit','https://developer.apple.com/documentation/replaykit'],
+ S5:['Google · Vision API Product Search','https://docs.cloud.google.com/vision/product-search/docs'],
+ S6:['Google · Ecommerce product data / Lens','https://developers.google.com/search/docs/specialty/ecommerce/where-ecommerce-data-can-appear-on-google'],
+ S7:['MCP · Security best practices','https://modelcontextprotocol.io/docs/2025-11-25/tutorials/security/security_best_practices'],
+ S8:['Stripe · Subscription webhooks','https://docs.stripe.com/billing/subscriptions/webhooks'],
+ S9:['European Commission · International data protection','https://commission.europa.eu/law/law-topic/data-protection/international-dimension-data-protection_en']
+};
+const slides=[
+{type:'cover',title:'CleanTouch',subtitle:'제품 현황 진단과 사업화·글로벌 확장 전략',tag:'PRODUCT & BUSINESS REVIEW',note:'2026.10.15 기준 로컬 소스, 기존 검증 기록, 사용자 제보 및 공식 플랫폼 문서를 검토한 보고서다. 시장 규모나 매출을 추정한 투자제안서가 아니다. 검증되지 않은 기능·목표·사업 가설은 사실과 구분한다.'},
+{title:'지금의 강점은 사용 흐름, 다음 과제는 신뢰할 수 있는 구매 연결',eyebrow:'EXECUTIVE DECISION',type:'cards',cards:[
+ ['현재 판단','화면 선택·위젯·AI 대화가 연결된 프로토타입\n일부 기능 검증은 있으나 상용 서비스 검증은 부족'],
+ ['가장 큰 결함','상품 종류 추정과 같은 모델 식별이 섞임\n키워드 검색 링크가 실제 구매처처럼 보이는 경험'],
+ ['추천 진입점','카탈로그를 제공할 수 있는 판매자와 B2B 실증\nWindows 검증 + 웹 SDK 재사용, Android 병행 안정화'],
+ ['유료 출시 전 조건','실제 상품 상세 URL·오인식률·성공당 원가 측정\n인증·결제·사용량·고객지원 체계 구축']
+],banner:'확장 채널보다 먼저, “찾은 상품이 맞는가”와 “고객이 살 수 있는가”를 증명한다.',note:'프로토타입의 장점은 시청 흐름을 유지하는 인터랙션과 기기 내 전처리다. B2B 우선은 확정 시장조사 결과가 아니라 현재 자산과 데이터 부족을 고려한 권고다. B2C 수요 검증은 동시에 진행하되 범용 동일상품 보장 광고와 무제한 구독은 보류한다.'},
+{title:'목차',eyebrow:'REPORT MAP',type:'agenda',items:[
+ ['01','현황과 근거','구현 범위 · 검증 기록 · 핵심 결함'],
+ ['02','제품·고객 전략','정확도 엔진 · B2C · 사업자 · 기업'],
+ ['03','제공 방식과 수익화','Windows · 모바일 · MCP · 구독/설치형'],
+ ['04','상용화·글로벌 준비','보안 · 원가 · 운영 · 국가별 확장'],
+ ['05','실행 의사결정','출시 지표 · 단계별 계획 · 우선 투자']
+],note:'24장 구성: 본문 22장과 근거 자료 2장. 발표자는 핵심 판단, 같은 상품 검색 엔진, 고객별 가치, 출시 조건을 우선 설명한다.'},
+{title:'현재 자산은 존재하지만, 플랫폼별 완성도는 다르다',eyebrow:'01 / IMPLEMENTED SCOPE',type:'table',headers:['영역','확인된 현재 상태','상용화 전 남은 일'],widths:[2.05,5.05,5.0],rows:[
+ ['Windows','0.1.61 설치형·포터블 / 위젯·선택·AI·음성','상품 검색 신뢰도, 배포 서명·실사용 품질'],
+ ['Android','소스 버전 0.5.0 / 캡처·위젯·챗봇 구현','PC 기능 동등성, A15 등 실기기 검증'],
+ ['웹·SDK·Studio','React/TS 프로토타입 / 시간별 상품 태그·이벤트','실제 카탈로그·권한·운영 DB 연동'],
+ ['AI·검색 API','Gemini 중계 / 영상 이미지·상품·장소·Live','판매 데이터 공급, 쿼터·장애·비용 제어'],
+ ['구독·기업·MCP','정식 결제·테넌트·MCP 구현은 확인되지 않음','별도의 공통 서비스 계층 구축 필요']
+],banner:'설치 가능한 앱이 있다는 사실과, 고객에게 판매할 준비가 됐다는 사실은 다르다.',note:'Windows package.json 0.1.61, Android app/build.gradle.kts versionName 0.5.0을 우선 근거로 사용했다. Android README는 0.4.7로 뒤처져 있으며 최신 빌드·배포 상태와 기능 동등성을 입증하지 않는다. 웹 server/api.mjs에는 JSON/NDJSON 저장과 데모키 기반 인증이 있다. 이를 정식 회원·과금·기업 DB로 간주하지 않았다.'},
+{title:'현재 흐름은 “화면 이해 → 탐색 지원”에 가깝다',eyebrow:'01 / CURRENT DATA FLOW',type:'flow',nodes:[['기기','화면 권한\n영역 선택·마스킹'],['기기 내 처리','대표 이미지 선별\n대화·사진 로컬 보관'],['중계 API','Netlify/Express\n요청 검사·메모리 제한'],['외부 AI·검색','Gemini·판매 사진 비교\nLens 웹 연결'],['사용자 결과','추정 상품명·후보\n키워드/외부 링크']],cards:[['재사용 가능한 자산','입력 권한 · 작은 위젯 · 사진 업로드 · 대화 이력 · 기기 내 전처리'],['아직 없는 중심축','정식 상품 카탈로그 · 고객별 인증/사용량 · 구매 결과 검증 · 운영 지표']],banner:'화면 캡처는 로컬 작업이며, AI 호출·외부 검색을 할 때 네트워크와 비용이 발생한다.',note:'기기 → 중계 → Gemini/검색 → 사용자 구조를 코드에서 확인했다. 모든 화면 픽셀이 항상 서버로 전송되는 구조라고 표현하지 않는다. 사진은 명시적 분석 또는 화면 공유 설정에 따라 전송된다. Windows 음성은 별도 마이크 동의 후 Live 연결을 사용한다. SECURITY.md의 “마이크 수집 없음” 문장은 최신 음성 기능과 일치하지 않아 갱신이 필요하다.'},
+{title:'좋아진 수집 성능을 상품 정확도로 해석하면 안 된다',eyebrow:'01 / EVIDENCE & LIMITS',type:'evidence',stats:[['138','Windows 단위 테스트','최근 기록 기준'],['81','API 단위 테스트','미배포 구매 개선 포함'],['9장 / 30초','실제 영상 대표 이미지 추가','한 번의 관측값']],cards:[['확인된 개선','기존 85장을 대표 이미지 34장으로 정리\n전체화면 영역 감지·중복 제거·앞뒤 근거 보관'],['입증되지 않은 핵심','실사용 Top-1 동일 모델 정확도·구매 전환율\n판매처 검색은 실제 재검사에서 사용량 제한 발생']],banner:'테스트 개수 ≠ AI 정확도. 성공 사례 하나 ≠ 전 상품·전 기기에서의 품질 보증.',note:'QUALITY-0.1.61.md 및 artifacts/verification/*purchase-tests.txt를 근거로 작성했다. API 81개는 직전 작업의 로컬 소스와 테스트 결과이며, 배포된 제품에 적용됐다는 의미가 아니다. 실제 similar 요청은 HTTP 200 안에 comparisonStage=search_unavailable, 후보 0개를 반환했다. 전체 테스트를 이번 보고서 작업에서 다시 실행하거나 전체 보안 감사를 수행한 것은 아니다.'},
+{title:'P0는 정확도·상품 데이터·결과 표현의 동시 개선',eyebrow:'01 / GAPS THAT BLOCK VALUE',type:'cards',cards:[
+ ['P0 · 상품 식별','색·종류만으로 모델을 확정할 수 없음\n선명한 전체 형태, 로고, 모델번호, 전후 맥락 필요'],
+ ['P0 · 검색 데이터','실제 판매 SKU/옵션/URL이 없으면 검색어로 끝남\n제휴 피드·판매자 카탈로그·허용된 검색 공급 필요'],
+ ['P0 · 결과의 정직성','같은 모델 근거 / 비슷한 외형 / 미확인 구분\n검색 실패를 구매 성공처럼 표시하지 않기'],
+ ['P1 · 제품 운영','계정·권한·과금·분산 쿼터·장애 관측 미흡\nAndroid 실기기·버전/문서 정합성 검증 필요']
+],banner:'직전 구매 개선 코드는 로컬 수정·테스트 단계. 최신 설치본·공개 서버에 반영됐다고 보지 않는다.',note:'중단된 직전 작업에는 product-identity.ts, 판매 페이지 식별자 검사, 검색 버튼과 판매 후보 구분 등의 변경이 있다. 배포와 최종 앱 빌드는 완료되지 않았다. 코드상 SSRF 방어·링크 제한 등이 있더라도 기업 보안 적합성 인증을 의미하지 않는다.'},
+{title:'다음 엔진은 상품명 추정을 넘어, 같은 상품과 옵션을 찾아야 한다',eyebrow:'02 / TARGET PRODUCT ENGINE',type:'flow',nodes:[['관측 품질','선명한 컷·전체 형태\n가림/반사·전후 검증'],['식별 단서','이미지 특징·문자 읽기\n로고·모델번호'],['후보 검색','허가된 카탈로그\n이미지+텍스트 검색'],['재검증','실제 판매 사진 대조\n상품 코드·옵션·국가'],['근거 있는 결과','상세 URL + 확인 시각\n동일/유사/미확인']],cards:[['동일 모델 후보','제품 ID·브랜드·모델 식별자와 옵션 근거를 함께 제시\n사진 유사도만으로 “100% 동일”을 만들지 않음'],['판단 불가 시','추가 컷·로고 확대를 요청하거나 미확인으로 종료\n다른 상품을 확신하며 추천하는 것보다 안전']],banner:'권고 구조이며 현재 전체 구현 완료 상태가 아니다. 전 세계 모든 상품의 동일 모델 보장은 제외한다.',sources:['S5'],note:'Google Vision Product Search도 등록된 제품 세트와 참조 사진에서 검색하는 방식이다. 그 API를 연결한다고 전 세계 쇼핑몰 전체를 검색하는 것은 아니다. 제안 엔진은 특정 공급자에 고정하지 않는다. 자체/제휴 데이터, 하이브리드 검색, 판매 사진 비교, SKU 옵션 검증의 공통 계층이 핵심이다. SKU는 상품·옵션 재고관리 코드, OCR은 이미지 속 문자 인식, 임베딩은 이미지를 검색 가능한 수치 특징으로 바꾸는 방식이다.'},
+{title:'자사 영상은 태그로 정확하게, 외부 영상은 검색으로 탐색',eyebrow:'02 / TWO DATA ROUTES',type:'cards',cards:[
+ ['A · 판매자 소유 영상','상품 ID·등장 구간·좌표·구매 URL을 사전 연결\n이미 있는 웹 SDK/Studio 프로토타입 재사용'],
+ ['A의 가치와 조건','제공한 상품 범위 안에서 구매 연결을 통제\n상품 등록·검수·품절/옵션 동기화는 필요'],
+ ['B · 유튜브 등 외부 영상','화면 선택 → 후보 검색 → 사진·식별자 검증\n정답 미포함·비판매·커스텀 상품일 수 있음'],
+ ['데이터 계약이 제품 기능','사진 사용·인덱싱·국가별 판매·딥링크 권한 확인\nLens 웹 자동 업로드는 변경/확인 화면 의존']
+],banner:'직접 관리하는 영상·카탈로그에서 첫 유료 가치를 입증하는 편이 현재 자산에 적합하다.',sources:['S5','S6'],note:'src/sdk/types.ts에는 product ID, productUrl, activeFrom/To, keyframes 및 onPurchase/onAddToCart 이벤트 훅이 이미 있다. server/api.mjs의 예시는 데모 데이터이며 실거래 연동이 아니다. SDK purchase_click은 구매 버튼 클릭이지 결제 완료 이벤트가 아니다. 판매자의 서버 주문 이벤트가 연결돼야 실제 전환 측정이 가능하다.'},
+{title:'고객 규모가 아니라 해결하는 업무로 제안을 나눈다',eyebrow:'02 / CUSTOMER VALUE',type:'table',headers:['고객','어필할 핵심 가치','필수 기능 / 검증할 지표'],widths:[2.05,4.9,5.15],rows:[
+ ['일반 소비자','보던 상품을 저장·식별하고 실제 구매처로 이동','간단한 권한·모바일 UX / 검색 성공·재방문'],
+ ['개인사업자','영상 속 내 상품을 클릭 가능한 상품으로 연결','간편 등록·SDK / 등록 시간·유효 상품 클릭'],
+ ['중소기업','상품 문의를 줄이고 상담·콘텐츠 제작을 지원','카탈로그·팀 권한 / 상담 시간·정답률'],
+ ['중견기업','여러 브랜드·채널·국가 상품을 통합 관리','PIM/ERP 연동·테넌트 / 운영 시간·최신성'],
+ ['대기업','승인된 데이터 안에서 통제 가능한 AI 도입','SSO·감사·전용 배포 / 보안·SLA·ROI']
+],banner:'모든 고객에게 같은 설치 파일과 같은 가격표를 제시하지 않는다.',note:'이 표는 검증할 고객 가설이다. 실제 구매 의향·시장 점유율·확정 매출이 아니다. 개인사업자와 중소기업의 니즈는 겹칠 수 있으므로 업종·카탈로그 보유·업무 빈도로 다시 세분화한다. 의료·금융 등 추가 규제가 있는 업종은 초기 대상에서 제외하거나 별도 요구사항을 검토한다.'},
+{title:'B2C는 “화면을 떠나지 않는 세 단계”가 제품이다',eyebrow:'02 / CONSUMER EXPERIENCE',type:'flow',nodes:[['01 · 발견','작은 위젯\n명시적 화면 연결'],['02 · 선택','상품을 한 번 누르기\n필요하면 윤곽 보정'],['03 · 판단','동일/유사 근거 확인\n실제 상품 상세로 이동']],cards:[['반드시 남길 것','이전 대화·상품 보관함·명확한 실패 안내\n사진 업로드와 이미지 검색을 보조 수단으로 제공'],['우선 줄일 것','자동 화면 공유·자동 마이크·중복 분석\n복잡한 분석 메뉴·근거 없는 상품명·검색 링크 남발']],banner:'가격 알림·공유 목록·추천 개인화는 데이터 신뢰도와 이용 동의가 갖춰진 뒤 추가한다.',sources:['S3'],note:'개인 구독의 반복 가치는 일회성 이미지 검색만으로는 약할 수 있다. 보관함, 다시 찾기, 반복 구매 탐색의 재방문을 측정한다. Android 권한·알림·성능·회전·다른 영상 앱과의 조합을 실기기로 확인해야 한다. DRM/보호 콘텐츠는 지원 제한을 알리고 우회 기능을 약속하지 않는다.'},
+{title:'B2B는 “내 상품과 내 업무”를 확실하게 연결한다',eyebrow:'02 / BUSINESS PILOT',type:'cards',cards:[
+ ['판매자·브랜드','자사 영상에 SKU 태그와 상품 카드 연결\n신상품/품절 갱신 · 클릭→판매처 추적'],
+ ['커머스·상담팀','고객이 보낸 사진을 승인된 상품군과 대조\n상담원이 근거 확인 후 상품 링크 제안'],
+ ['콘텐츠·운영팀','상품 등장 구간을 찾고 목록/검수 작업 보조\n자동 결과는 검토 후 공개 · CSV/API 내보내기'],
+ ['실증 계약 단위','한 업종·한 카탈로그·정해진 SKU/영상 수\n시간 절감·정확도·운영 부담을 전후 비교']
+],banner:'첫 고객의 목표는 “AI 도입”이 아니라, 측정 가능한 업무 개선과 구매 연결이다.',note:'추천 초기 실증은 상품 정보를 제공할 의사가 있는 판매자 2~3곳이다. 협찬·파트너십·고객 확보가 완료됐다는 뜻이 아니다. 계약에는 데이터 사용 범위, 결과 검수 책임, 서비스 범위, 성공 기준 및 종료 시 데이터 반환/삭제를 포함한다.'},
+{title:'한 엔진을 공유하되, 채널별 권한과 UX는 별도로 설계',eyebrow:'03 / PLATFORM STRATEGY',type:'table',headers:['채널','고객에게 제공할 형태','우선순위·제약'],widths:[2.2,4.95,4.95],rows:[
+ ['Windows','설치 앱·위젯 / 업무용 데스크톱 탐색','기준 제품 안정화 / 서명·업데이트 검증'],
+ ['Android','앱·위젯·사진 공유 / 소비자 주력 채널','높음 / 캡처 동의·기기별 메모리·배터리'],
+ ['iOS','사진·공유 확장 우선 / 캡처 방식 기술 검증','소스 확인 안 됨 / Android UX 복제 금지'],
+ ['웹·브라우저','판매자 SDK·Studio / 선택적 브라우저 확장','B2B 재사용 높음 / 영상·사이트 권한 범위'],
+ ['Claude·ChatGPT','인증된 MCP 도구 + 호스트별 결과 UI','핵심 API 안정화 뒤 / 계정·심사 조건 확인']
+],banner:'채널을 늘릴 때마다 모델·상품 데이터·과금 로직을 복제하지 않는다.',sources:['S1','S2','S3','S4'],note:'Android MediaProjection은 사용자의 캡처 동의와 수명 관리가 필요하다. Apple ReplayKit의 존재가 타 앱 위에 Android와 같은 위젯을 띄울 수 있음을 뜻하지 않는다. iOS는 공유 시트/사진 기반 경험을 먼저 검증한다. ChatGPT 공식 문서는 현재 MCP server/UI 및 Plugins 문서 경로를 제공한다. 구형 플러그인 방식에만 고정하지 않고 출시 시 지원 채널·권한·심사를 다시 확인한다.'},
+{title:'AI 앱 연결 표준(MCP)은 화면 캡처 권한을 대신하지 않는다',eyebrow:'03 / AI HOST INTEGRATION',type:'flow',nodes:[['클라이언트','Windows·모바일\n사용자가 이미지 선택'],['공통 서비스','로그인·고객별 권한\n짧은 수명의 이미지 참조'],['MCP/API','상품 식별·카탈로그 검색\n판매처 조회 도구'],['호스트','Claude 커넥터\nChatGPT MCP/UI']],cards:[['공통으로 돌려줄 결과','상품 ID·사진·일치 근거·상세 URL·확인 시각\n고객별 권한 필터와 사용량 처리'],['기본 설계 원칙','OAuth·최소 권한·도구별 입력 검증·감사\n화면 전송/주문/결제를 자동 실행하지 않기']],banner:'ChatGPT·Claude 구독료에 CleanTouch의 서버·검색·추론 비용이 자동 포함되는 것은 아니다.',sources:['S1','S2','S7'],note:'Claude 원격 커넥터는 Anthropic 클라우드에서 원격 MCP 서버로 접속한다. 설치 앱이 있더라도 서버가 사용자 데스크톱에 자동 접근할 수 없다. 제안 API는 캡처 자체보다 사용자 승인 이미지 참조를 입력으로 받고, 임의 로컬 파일 경로나 무제한 원격 URL을 받지 않는다. 호스트별 OAuth·UI·앱 심사·계정 제공 조건은 배포 시 확인한다. 아직 구현되지 않은 제안이다. MCP 도구의 제안 이름은 identify_product, search_catalog, get_offer이며 제품의 공통 API 위에 두는 어댑터다.'},
+{title:'설치형은 전달 방식, 구독형은 과금 방식이다',eyebrow:'03 / PACKAGING & REVENUE',type:'table',headers:['패키지 제안','제공·판매 방식','구매 이유 / 원가 보호'],widths:[2.3,4.75,5.05],rows:[
+ ['개인 Free / Pro','앱 설치 + 제한 체험 / 월·연 구독','보관·재탐색 편의 / 월 사용량·추가 이용 동의'],
+ ['Business','웹 SDK·Studio + 팀 구독','SKU 태그·검수·분석 / 기본료+측정 사용량'],
+ ['Enterprise','연간 계약 + 전용 배포·통합 지원','SSO·감사·SLA / 좌석·용량·지원 범위 계약'],
+ ['설치 라이선스','기기/사이트 라이선스 + 유지보수','업데이트·배포 관리 / 클라우드 추론비 분리'],
+ ['제휴 수익','승인된 판매처의 성과형 제휴','보조 수익 / 제휴 표시·순위 영향 투명성']
+],banner:'가격은 아직 가설. 무제한 AI·무기한 업데이트·평생 클라우드 사용을 먼저 약속하지 않는다.',sources:['S8'],note:'개인 Pro와 Business 가격은 고객 인터뷰와 실측 원가 뒤 결정한다. Windows 설치형도 구독과 결합할 수 있다. 설치형/전용 배포는 완전 오프라인을 의미하지 않는다. 외부 Gemini를 계속 쓰면 데이터 반출·추론비가 남는다. 폐쇄망 지원은 대체 모델·하드웨어·라이선스·성능 검증이 필요한 별도 제품이다. 제휴 계약과 앱마켓 결제 규정은 별도 확인한다.'},
+{title:'평균 사용자보다 많이 쓰는 사용자가 수익성을 결정한다',eyebrow:'03 / UNIT ECONOMICS',type:'economics',cards:[['계산 기준','성공 1건 원가 = 성공/실패 AI·검색·전송 총비용 ÷ 검증 성공 건수\n음성·Live·지원·데이터 갱신 비용도 별도 계측'],['운영 장치','사용자·조직별 한도와 예산 알림 · 캐시·배치·중복 제거\n결제 웹훅 서명·중복 처리 · 사용량 원장·환불/실패 정책']],scenarios:[['월 순매출 가정','10,000원','10,000원'],['고객당 고정비 가정','1,500원','1,500원'],['이용량 × 성공당 원가 가정','100건 × 50원','300건 × 50원'],['단순 기여액','+3,500원','−6,500원']],banner:'모든 금액은 설명용 가정. 실제 요금·API 단가·수익 예측이 아니며, 개발비·세금 등은 제외했다.',sources:['S8'],note:'실제 단위경제를 산출한 결과가 아니다. 동일한 순매출에서도 사용량 분포가 다르면 수익성이 달라짐을 보여준다. 실패 요청에도 공급자 비용이 생길 수 있어 성공 건수만의 호출 단가를 쓰면 과소 추정된다. 키 발급을 최종 고객에게 요구하지 않으려면 운영자가 인증·비용·분산 쿼터를 담당하는 서비스 계층을 운영해야 한다.'},
+{title:'기업 판매에 필요한 것은 보안 기능보다 운영 가능한 통제',eyebrow:'04 / SECURITY & OPERATIONS',type:'cards',cards:[
+ ['현재 기반 · 코드 기준','키를 중계 환경에 보관 · 요청/링크 검사\nElectron 격리 · 기기별 대화 암호화 경로'],
+ ['P0 · 계정과 비용 보호','로그인·조직/역할·서버측 권한·분산 쿼터\n결제 상태와 이용 권한의 일관성 · 남용 탐지'],
+ ['P0 · 배포·문서 정비','SDK 데모키 기본값 제거 · 운영 CORS/권한 정리\n실제 코드 서명·업데이트 검증 · 음성/보관 안내 갱신'],
+ ['기업 계약을 위한 추가 조건','SSO·감사 로그·보관/삭제·백업 복구·장애 대응\n데이터 반출 정책·DPA·위탁사·외부 보안 검증']
+],banner:'공개 중계의 메모리 기반 제한은 여러 인스턴스의 고객별 사용량을 보장하는 과금 장치가 아니다.',sources:['S7','S9'],note:'이 보고서는 소스와 문서 수준의 구조적 진단이며 침투 테스트나 보안 인증 결과가 아니다. prototype server/api.mjs는 기본 데모키와 와일드카드 CORS를 사용한다. 실제 외부 노출 여부는 이번에 확인하지 않았으므로 현재 침해나 악용 가능 경로를 확정하지 않는다. 대화 암호화가 서버의 테넌트 격리나 로그 안전성까지 보장하는 것은 아니다.'},
+{title:'글로벌화는 번역보다 판매 데이터와 운영 국가를 늘리는 일',eyebrow:'04 / GLOBAL READINESS',type:'cards',cards:[
+ ['상품·판매 데이터','국가별 SKU·색/사이즈 체계·현지 판매처·배송\n통화·세금/관세 표시 · 품절·링크 갱신 정책'],
+ ['언어와 사용 경험','한·영 UI/검색/음성부터 검증 · 현지 단위/시간\n접근성·저사양 기기 · 국가별 결제 실패 대응'],
+ ['정책과 신뢰','개인정보·국외 이전·삭제 요청·소비자 고지\n스토어/판매처 정책·상품 이미지 사용권 확인'],
+ ['진입 순서 · 제안','한국의 제한 카탈로그 실증 → 영어권 한 국가\n현지 공급·지원 파트너 확보 후 다음 국가 확대']
+],banner:'해외 진출의 합격 기준은 언어 수가 아니라, 해당 국가에서 실제 구매 가능한 상품을 찾는 비율이다.',sources:['S9'],note:'국가별 법률·세금의 구체적 적용은 판매 주체와 데이터 흐름에 따라 전문가 검토가 필요하다. EU의 개인정보 국외 이전을 단순 번역·동의 문구만으로 해결했다고 보지 않는다. 이 문서는 법률 자문이 아니며 국가별 출시 검토 항목을 제시한다. 한국과 영어권 한 국가도 제안된 검증 순서이지 확정 사업 계획은 아니다.'},
+{title:'출시 판단은 테스트 수가 아니라 고객 결과로 한다',eyebrow:'05 / PROPOSED RELEASE GATES',type:'table',headers:['지표','측정 방법','파일럿 목표 예시'],widths:[2.6,5.15,4.35],rows:[
+ ['동일 상품 오표시율','동일 모델이라고 표시한 결과 중 오답 비율','1% 이하 · 가려진 상품 등 별도 집계'],
+ ['카탈로그 Top-1','정답 SKU가 포함된 평가셋의 첫 후보 정확도','90% 이상 · 범위 밖 입력과 분리'],
+ ['판매 페이지 유효성','후보 링크가 실제 해당 SKU/옵션 상세인지','98% 이상 · 품절은 별도 표시'],
+ ['응답/안정성','응답 95%가 도착하는 시간 / 무중단 세션 비율','10초 이내 / 99.5% 이상'],
+ ['사업성과 원가','업무 시간·구매 완료·성공당 원가·유지율','고객별 목표 합의 후 유료 전환']
+],banner:'모든 수치는 제안 목표이며 현재 달성값이 아니다. 오답과 “모르겠음”, 카탈로그 밖 입력을 분리한다.',note:'정답 보유 상품의 Top-1만 높게 만들어도 실제 열린 세상 성능은 보장되지 않는다. 우선 약 1,000개 질의로 정답 포함/미포함·모션/가림·색/옵션·앱/기기별 평가셋을 구성하되, 영상·SKU·사용자 단위로 개발/평가 데이터를 분리한다. 동일 상품 표시 비율(coverage)과 정확도를 함께 보고해 전부 미확인 처리하는 방식의 지표 편법을 방지한다. 결제 완료는 판매자 서버 이벤트 연동 없이는 확인할 수 없다.'},
+{title:'완료 날짜보다 통과 조건으로 다음 투자를 결정한다',eyebrow:'05 / PHASED EXECUTION',type:'table',headers:['단계·예상 범위','핵심 산출물','다음 단계 조건'],widths:[2.6,5.1,4.4],rows:[
+ ['0 · 1~2주','상태/문서 정리·평가셋·공급 후보·원가 계측','정답·실패·비용을 재현 가능하게 측정'],
+ ['1 · 추가 3~4주','제한 카탈로그 엔진·판매 URL 검증·SDK 실증','2~3개 파트너의 데이터·권한 확보'],
+ ['2 · 추가 4~6주','인증/구독/사용량·Windows·Android 베타','정확도/안정성 게이트·유료 이용 의향'],
+ ['3 · 조건 충족 후','MCP·팀 기능·영어권 한 국가 검증','호스트 심사·현지 데이터·단위경제 확인']
+],banner:'인력·데이터 계약이 확보된 경우의 계획 가설. 일정 보장이 아니며 iOS/폐쇄망은 별도 검증 범위다.',note:'필요 역량은 제품/사업 담당, 검색·백엔드 담당, Windows/Android 클라이언트 담당, QA/보안·운영 담당이다. 1인 수행 또는 파트너 데이터 계약 지연 시 기간은 크게 늘 수 있다. 각 단계에 담당자·비용 상한·중단 조건을 지정하고, 기능 수를 늘리는 대신 출시 지표 달성에 투자한다.'},
+{title:'지금 결정할 다섯 가지',eyebrow:'05 / MANAGEMENT ACTIONS',type:'agenda',items:[
+ ['01','첫 유료 고객','카탈로그 제공 가능한 판매자/팀을 우선할지 결정'],
+ ['02','지원 범위','한 업종·상품군·국가·Windows/Android 범위 합의'],
+ ['03','데이터 확보','SKU·참조 사진·판매 URL·갱신/사용 권한 담당 지정'],
+ ['04','투자 기준','정확도·유효 링크·성공당 원가로 다음 단계 승인'],
+ ['05','채널 확장','공통 엔진 안정화 뒤 MCP·iOS·해외를 순차 확대']
+],note:'고객 인터뷰 목표 예시: 소비자 10명, 판매자/운영팀 5곳, 기업 보안/구매 담당 2곳. 현재 고객 인터뷰나 유료 수주가 완료됐다는 뜻이 아니다. 주요 중단 조건은 데이터 사용권 확보 실패, 동일 상품 식별 품질 미달, 사용량 증가 시 손실 확대, 모바일 권한/안정성 문제다. 핵심 경쟁력은 범용 LLM 보유가 아니라 허가된 상품 데이터와 시청/업무 흐름에 맞는 신뢰할 수 있는 구매 연결이다.'},
+{title:'분석 근거와 상태 구분',eyebrow:'APPENDIX A / INTERNAL EVIDENCE',type:'cards',cards:[
+ ['검토 범위','cleantouch-project 내부 소스·품질 기록·문서\n관련 없는 practice-board 게시판은 제외'],
+ ['버전 기준','Windows package.json: 0.1.61\nAndroid build.gradle.kts: 0.5.0 / README는 이전 버전'],
+ ['검증 기록','QUALITY-0.1.59~61 / Windows 테스트 138개\nAPI 구매 테스트 81개 / 실제 검색 제한 응답'],
+ ['해석의 한계','직전 구매 개선은 로컬 수정·테스트 단계\n전체 실기기·부하·침투·시장성 검증은 미실시']
+],banner:'발표 자료 안의 “제안·목표·가정”을 실제 구현, 고객 확보, 매출 또는 품질 달성으로 인용하지 않는다.',note:'주요 내부 파일: cleantouch-desktop/{package.json,QUALITY-0.1.61.md,renderer.js,main.cjs,scene-dedup.js,chat-store.cjs}; cleantouch-search-api/{src/place-provider.ts,src/product-identity.ts,src/seller-photo.ts,netlify/functions/place-chat.mjs}; cleantouch-android/app/build.gradle.kts 및 search/MobileChatController.kt,MobileAiClient.kt; cleantouch/{src/sdk/types.ts,server/api.mjs}; SECURITY.md; artifacts/verification/{api-purchase-tests.txt,desktop-purchase-tests.txt}. README와 보안 문서의 버전/음성 설명은 현재 코드와 차이가 있다. 기존 발표 자료의 완료 표현은 그대로 승계하지 않았다.'},
+{title:'공식 참고자료',eyebrow:'APPENDIX B / SOURCES',type:'sources',note:'외부 출처 확인일: 2026.10.15. 각 링크는 기능 구조·권한·인증·운영 기준을 참고한 1차 자료다. 제공 지역, 요금제, 심사 정책과 API 지원 범위는 실제 출시 시 재확인한다. 외부 자료는 CleanTouch의 현재 기능을 검증하는 증거가 아니며, 제안 아키텍처와 출시 제약을 설명하는 근거다.'}
+];
+slides.splice(slides.findIndex(d=>d.eyebrow==='03 / PLATFORM STRATEGY'),0,{
+ title:'모델을 연결했다는 사실보다, 고객의 탐색을 끝내주는 결과가 경쟁력',eyebrow:'02 / DIFFERENTIATION',type:'cards',cards:[
+  ['기존 대안과 겹치는 영역','Google Lens 등의 이미지 검색 · 범용 AI와의 대화\n화면 공유나 설명 기능만으로 유료 가치를 증명하기 어려움'],
+  ['B2C 차별점 · 검증할 가설','보던 흐름 유지 · 지나간 상품 재탐색 · 실제 판매처 근거\n기존 검색 대비 성공률·완료 시간·재사용으로 비교'],
+  ['B2B 차별점 · 검증할 가설','자사 SKU 태그·승인 카탈로그·팀 검수·업무 연동\n판매자가 상품 정보와 전환 흐름을 관리'],
+  ['지속적으로 쌓을 자산','허가된 상품/영상 매핑 · 정답/오답 평가셋 · 갱신 운영\n모델 교체가 가능해도 유지되는 데이터·업무 연결']
+ ],banner:'현재 시장 규모·유료 전환 의향·경쟁 우위를 입증한 조사는 없다. 비교 실험과 고객 인터뷰가 먼저다.',sources:['S6','S1'],
+ note:'이 장의 경쟁력은 사업 가설이며 타사의 기능 부재를 단정하지 않는다. Google 공식 문서는 상품 데이터와 이미지가 Lens의 검색 결과에 사용될 수 있음을 설명하고, OpenAI 공식 문서는 MCP 도구/UI 연동을 설명한다. CleanTouch가 범용 검색 서비스의 규모와 카탈로그를 즉시 대체할 수 있다고 주장하지 않는다. 소비자의 무료 대안 대비 지불 의향, 사업자의 통합 비용 대비 업무 성과를 측정해야 한다.'
+});
+const pptx=new PptxGenJS();pptx.defineLayout({name:'CT',width:13.333333,height:7.5});pptx.layout='CT';pptx.author='CleanTouch';pptx.subject='제품 현황·B2B/B2C 사업화 및 글로벌 확장 진단';pptx.title='CleanTouch 사업화 현황 진단 및 확장 전략';pptx.lang='ko-KR';pptx.company='CleanTouch';pptx.theme={headFontFace:'Malgun Gothic',bodyFontFace:'Malgun Gothic',lang:'ko-KR'};
+const C={bg:'F8F9FC',ink:'20243A',muted:'677087',purple:'7150E8',pale:'EEE9FD',teal:'147D7A',tealPale:'E1F4F0',line:'DDE2ED',white:'FFFFFF',navy:'171A2D',red:'A84350'};
+function box(s,x,y,w,h,fill=C.white,line=C.line,r=.16){s.addShape(pptx.ShapeType.roundRect,{x,y,w,h,rectRadius:r,radius:r,fill:{color:fill},line:{color:line,width:.6},radius:r});}
+function text(s,t,x,y,w,h,size=17,opts={}){s.addText(t,{x,y,w,h,fontFace:'Malgun Gothic',fontSize:size,color:C.ink,margin:0,breakLine:false,fit:'shrink',...opts});}
+function base(d,i){const s=pptx.addSlide();s.background={color:C.bg};text(s,d.eyebrow||'CLEANTOUCH',.6,.3,11,.25,9,{color:C.purple,bold:true,charSpacing:1.6});text(s,d.title,.6,.83,12.12,.87,27,{bold:true});s.addShape(pptx.ShapeType.line,{x:.6,y:1.84,w:12.1,h:0,line:{color:C.line,width:1}});text(s,'CleanTouch  |  사업화 현황 진단  |  2026.10.15',.6,7.13,9.7,.18,8,{color:C.muted});text(s,String(i+1).padStart(2,'0')+' / '+slides.length,11.7,7.11,1,.2,8,{color:C.muted,align:'right'});const source=(d.sources||[]).map(k=>`${k} ${refs[k][0]}`).join('  ·  ');if(source)text(s,source,.65,6.96,11.9,.13,7,{color:C.muted});return s;}
+function card(s,entry,x,y,w,h,accent=C.purple){box(s,x,y,w,h);s.addShape(pptx.ShapeType.rect,{x:x+.18,y:y+.23,w:.045,h:h-.46,line:{color:accent,transparency:100},fill:{color:accent}});text(s,entry[0],x+.4,y+.22,w-.7,.37,17,{bold:true,color:accent});text(s,entry[1],x+.4,y+.85,w-.76,h-1.03,15,{breakLine:false,paraSpaceAfterPt:8});}
+function banner(s,t){box(s,.6,6.37,12.12,.48,C.pale,C.pale);text(s,t,.8,6.47,11.7,.26,11.4,{color:C.purple,bold:true});}
+function table(s,heads,rows,widths,y=2.08,h=4.05){const rowH=h/(rows.length+1);let x=.6;heads.forEach((v,j)=>{s.addShape(pptx.ShapeType.rect,{x,y,w:widths[j],h:rowH,fill:{color:C.navy},line:{color:C.navy}});text(s,v,x+.15,y+.12,widths[j]-.3,rowH-.2,14,{color:C.white,bold:true});x+=widths[j];});rows.forEach((row,i)=>{let x=.6;row.forEach((v,j)=>{s.addShape(pptx.ShapeType.rect,{x,y:y+rowH*(i+1),w:widths[j],h:rowH,fill:{color:i%2?C.bg:C.white},line:{color:C.line,width:.5}});text(s,v,x+.15,y+rowH*(i+1)+.11,widths[j]-.3,rowH-.2,13.3,{bold:j===0,color:j===0?C.purple:C.ink});x+=widths[j];});});}
+for(let i=0;i<slides.length;i++){
+ const d=slides[i];let s;
+ if(d.type==='cover'){
+  s=pptx.addSlide();s.background={color:C.navy};text(s,d.tag,.7,.6,11,.3,10,{color:'BDAEFF',charSpacing:2,bold:true});text(s,'CleanTouch',.7,1.65,11.9,1.0,52,{color:C.white,bold:true});text(s,d.subtitle,.75,3.0,11.65,1.3,29,{color:C.white,bold:true});text(s,'보던 장면을, 신뢰할 수 있는 상품과 고객 가치로',.77,4.6,11.4,.45,19,{color:'C9D0E3'});
+  ['현재 구현 진단','B2B · B2C 설계','다중 플랫폼','글로벌 확장'].forEach((t,k)=>{box(s,.77+k*3.02,5.8,2.82,.5,'252942','383E5D');text(s,t,.94+k*3.02,5.93,2.4,.22,12,{color:'DDD6FF',bold:true});});text(s,'2026.10.15  |  내부 검토용  |  사실·제안·미검증 항목 구분',.77,6.92,11.5,.25,11,{color:'B6BED4'});
+ }else{
+  s=base(d,i);
+  if(d.type==='cards'){d.cards.forEach((c,k)=>card(s,c,.6+(k%2)*6.2,2.08+Math.floor(k/2)*2.06,5.92,1.86,k%2?C.teal:C.purple));if(d.banner)banner(s,d.banner);}
+  if(d.type==='agenda'){d.items.forEach((r,k)=>{const y=2.05+k*.84;box(s,.6,y,12.12,.7);text(s,r[0],.84,y+.18,.6,.3,19,{color:C.purple,bold:true});text(s,r[1],1.7,y+.18,3.6,.31,17,{bold:true});text(s,r[2],5.4,y+.2,7,.3,14,{color:C.muted});});}
+  if(d.type==='table'){table(s,d.headers,d.rows,d.widths,2.08,4.03);if(d.banner)banner(s,d.banner);}
+  if(d.type==='flow'){const n=d.nodes.length,gap=.23,w=(12.12-gap*(n-1))/n;d.nodes.forEach((a,k)=>{const x=.6+k*(w+gap);box(s,x,2.12,w,1.68,k===n-1?C.pale:C.white);text(s,a[0],x+.15,2.34,w-.3,.38,16,{bold:true,color:C.purple,align:'center'});text(s,a[1],x+.15,2.93,w-.3,.58,13,{align:'center'});if(k<n-1)text(s,'›',x+w+.01,2.74,gap-.02,.35,22,{color:C.muted,align:'center'});});d.cards.forEach((c,k)=>card(s,c,.6+k*6.2,4.08,5.92,1.93,k?C.teal:C.purple));if(d.banner)banner(s,d.banner);}
+  if(d.type==='evidence'){d.stats.forEach((a,k)=>{const x=.6+k*4.15;box(s,x,2.07,3.82,1.55,C.pale,C.pale);text(s,a[0],x+.22,2.27,3.36,.55,31,{bold:true,color:C.purple});text(s,a[1],x+.24,2.98,3.33,.3,14,{bold:true});text(s,a[2],x+.24,3.32,3.33,.17,9,{color:C.muted});});d.cards.forEach((c,k)=>card(s,c,.6+k*6.2,3.95,5.92,2.03,k?C.red:C.teal));banner(s,d.banner);}
+  if(d.type==='economics'){d.cards.forEach((c,k)=>card(s,c,.6+k*6.2,2.04,5.92,1.8,k?C.teal:C.purple));table(s,['설명용 시나리오','일반 이용자 가정','많이 쓰는 이용자 가정'],d.scenarios,[4.12,4.0,4.0],4.03,2.12);banner(s,d.banner);}
+  if(d.type==='sources'){Object.entries(refs).forEach(([id,a],k)=>{const y=2.03+k*.48;text(s,id,.65,y,.5,.25,11,{bold:true,color:C.purple});text(s,a[0],1.25,y,10.85,.26,12,{hyperlink:{url:a[1]},color:C.ink});});text(s,'각 슬라이드 발표자 노트에 출처 URL과 추가 해석·검증 한계를 수록했습니다.',.65,6.56,11.8,.28,12,{color:C.muted});}
+ }
+ s.addNotes((d.note||'')+'\n\n'+(d.sources||[]).map(k=>`${k}: ${refs[k][0]}\n${refs[k][1]}`).join('\n'));
+}
+const md=['# CleanTouch 사업화 현황 진단 및 확장 전략','기준일: 2026-10-15 | 코드·기록 기반 현황과 사업 가설 구분','이 문서는 발표 슬라이드와 설명을 함께 담습니다. 앱 소스를 변경하거나 배포한 보고서가 아닙니다.'];
+slides.forEach((d,i)=>{md.push(`\n## ${String(i+1).padStart(2,'0')}. ${d.title}`);if(d.subtitle)md.push(d.subtitle);for(const [a,b] of d.cards||[])md.push(`\n### ${a}\n${b}`);if(d.items)for(const r of d.items)md.push(`- ${r.join(' · ')}`);if(d.rows){md.push('| '+d.headers.join(' | ')+' |','| '+d.headers.map(()=>'---').join(' | ')+' |',...d.rows.map(r=>'| '+r.join(' | ')+' |'));}if(d.nodes)md.push('\n권고 흐름/현황: '+d.nodes.map(r=>r.join(': ').replaceAll('\n',' / ')).join(' → '));if(d.stats)for(const r of d.stats)md.push('- '+r.join(' · '));if(d.scenarios)for(const r of d.scenarios)md.push('- '+r.join(' · '));if(d.banner)md.push('\n**'+d.banner+'**');md.push('\n발표자 설명: '+d.note);for(const k of d.sources||[])md.push(`\n출처: [${refs[k][0]}](${refs[k][1]})`);});
+md.push('\n## 외부 공식 자료\n'+Object.entries(refs).map(([k,v])=>`- ${k}: [${v[0]}](${v[1]})`).join('\n'));
+fs.writeFileSync(path.join(out,stem+'.md'),md.join('\n'),'utf8');
+fs.writeFileSync(path.join(out,'business-review-20261015-data.json'),JSON.stringify({date:'2026-10-15',slides,refs},null,2));
+pptx.writeFile({fileName:path.join(out,stem+'.pptx')}).then(()=>console.log(JSON.stringify({slides:slides.length,file:path.join(out,stem+'.pptx')})));

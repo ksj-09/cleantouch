@@ -1,0 +1,7 @@
+const fs=require('node:fs');const edit=(f,fn)=>fs.writeFileSync(f,fn(fs.readFileSync(f,'utf8')));
+for(const f of ['cleantouch-search-api/src/place-chat.ts','cleantouch-search-api/netlify/functions/place-chat.mjs'])edit(f,s=>s.replace("task!=='product'", "task!=='product'&&task!=='objects'").replace("task==='product'?provider.identifyProduct", "task==='objects'?provider.locateProducts"+(f.endsWith('.ts')?'!':'')+"("+(f.endsWith('.ts')?'normalized':'bytes')+"):task==='product'?provider.identifyProduct"));
+edit('cleantouch-desktop/package.json',s=>{const p=JSON.parse(s);p.build.files.push('media-evidence.cjs','safe-logging.cjs');return JSON.stringify(p,null,2)+'\n';});
+edit('cleantouch-desktop/renderer.js',s=>s.replace('const products = [];\n    const regions',`const products = await locateSceneProducts(selectedCrop||frame.blob,frame,operation);
+    const regions`).replace("if(!candidatePolicy.quality(region.right-region.left",`const regionBox=[region.left/image.width,region.top/image.height,region.right/image.width,region.bottom/image.height];
+      if(products.some(p=>{const b=p.box;const overlap=Math.max(0,Math.min(b[2],regionBox[2])-Math.max(b[0],regionBox[0]))*Math.max(0,Math.min(b[3],regionBox[3])-Math.max(b[1],regionBox[1]));const small=Math.min((b[2]-b[0])*(b[3]-b[1]),(regionBox[2]-regionBox[0])*(regionBox[3]-regionBox[1]));return small>0&&overlap/small>.6;}))continue;
+      if(!candidatePolicy.quality(region.right-region.left`));

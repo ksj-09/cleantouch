@@ -1,0 +1,17 @@
+const fs=require('fs'),path=require('path');const file=path.resolve(__dirname,'../cleantouch-desktop/place-chat.js');let s=fs.readFileSync(file,'utf8');
+s=s.replace('pendingProduct=null,importedBlob','pendingProduct=null,pendingTarget=\'\',importedBlob');
+s=s.replace('busy=false;pendingProduct=null;','busy=false;pendingProduct=null;pendingTarget=\'\';');
+s=s.replace('identify(pendingProduct):reply()','identify(pendingProduct,pendingTarget):reply()');
+s=s.replace('async function identify(blob){','async function identify(blob,target=\'\'){');
+s=s.replace('reset();pendingProduct=blob;','reset();pendingProduct=blob;pendingTarget=target;');
+s=s.replace("bridge.identifyProduct(c.toDataURL('image/jpeg',.85).split(',')[1])","bridge.identifyProduct(c.toDataURL('image/jpeg',.85).split(',')[1],target)");
+s=s.replace('busy=false;await showProduct(blob,data);',"if(target&&!candidatePolicy.targetMatches(target,data.label))throw Error('선택한 '+target+' 대신 다른 상품이 인식됐어요. 상품 영역을 다시 선택해 주세요.');if(data.confidence==='low')throw Error('선택한 상품을 확인하기 어려워요. 상품 영역을 다시 선택해 주세요.');busy=false;await showProduct(blob,data);");
+fs.writeFileSync(file,s);
+const provider=path.resolve(__dirname,'../cleantouch-search-api/src/place-provider.ts');s=fs.readFileSync(provider,'utf8');
+s=s.replace('identifyProduct?(image: Buffer,signal?: AbortSignal)','identifyProduct?(image: Buffer,signal?: AbortSignal,target?:string)');
+s=s.replace('async identifyProduct(image: Buffer,signal=AbortSignal.timeout(45_000))','async identifyProduct(image: Buffer,signal=AbortSignal.timeout(45_000),target=\'\')');
+s=s.replace('text:productInstructions','text:productInstructions+(target?`\\n분석 대상은 ${JSON.stringify(target)}입니다. 이 명칭은 확인할 후보이며 정답이 아닙니다. 다른 물체로 대상을 바꾸지 마세요. 대상이 사진에서 불명확하면 종류 미확인, low와 빈 query를 반환하세요.`:\'\')');
+fs.writeFileSync(provider,s);
+const router=path.resolve(__dirname,'../cleantouch-search-api/src/place-chat.ts');s=fs.readFileSync(router,'utf8').replace('const {image,messages,task}','const {image,messages,task,target}');
+s=s.replace("if(task==='product'&&!provider.identifyProduct)","if(target!==undefined&&(typeof target!=='string'||target.length>60))throw new ChatError(400,'상품명 형식이 올바르지 않습니다.');\n      if(task==='product'&&!provider.identifyProduct)");
+s=s.replace('provider.identifyProduct!(normalized)','provider.identifyProduct!(normalized,undefined,target||\'\')');fs.writeFileSync(router,s);

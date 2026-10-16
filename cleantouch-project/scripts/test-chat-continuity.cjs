@@ -1,0 +1,16 @@
+const fs=require('node:fs'),path=require('node:path');const file=path.resolve(__dirname,'../cleantouch-desktop/test/place-chat.cjs');let s=fs.readFileSync(file,'utf8');
+function rep(a,b){if(!s.includes(a))throw Error('Missing test fragment '+a.slice(0,60));s=s.replace(a,b);}
+rep("answer:'간판 단서가 부족하여 정확한 위치는 확인할 수 없습니다.'", "answer:'간판 단서가 부족하여 정확한 위치는 확인할 수 없습니다.\\n<cleantouch-title>사진 속 장소 확인</cleantouch-title>'");
+rep("text:'테스트 화면 답변'", "text:'테스트 화면 답변\\n<cleantouch-title>화면 내용 알아보기</cleantouch-title>'");
+rep('  const importBefore=calls.length;', `  const photoConversationBefore=await window.webContents.executeJavaScript(\`(async()=>{document.getElementById('chat-reset').click();document.getElementById('chat-source').value='none';document.getElementById('chat-input').value='ㅎㅇ';document.getElementById('chat-form').requestSubmit();await new Promise(r=>setTimeout(r,180));await cleanTouchChatMemory.commit();return {id:cleanTouchChatMemory.currentId,text:document.getElementById('chat-messages').textContent,count:(await bridge.listChats()).length};})()\`);
+  const importBefore=calls.length;`);
+rep("  assert.equal(calls.length,importBefore);", `  const uploadContinuity=await window.webContents.executeJavaScript(\`(async()=>{await cleanTouchChatMemory.commit();return {id:cleanTouchChatMemory.currentId,text:document.getElementById('chat-messages').textContent,count:(await bridge.listChats()).length,photos:document.querySelectorAll('#chat-messages .user img').length};})()\`);
+  assert.equal(uploadContinuity.id,photoConversationBefore.id);assert.equal(uploadContinuity.count,photoConversationBefore.count);assert(uploadContinuity.text.includes('ㅎㅇ'));assert(uploadContinuity.text.includes('테스트 화면 답변'));assert.equal(uploadContinuity.photos,1);
+  await window.webContents.executeJavaScript(\`document.getElementById('chat-import-list').value='photo-2';document.getElementById('chat-import-list').dispatchEvent(new Event('change'))\`);await new Promise(r=>setTimeout(r,150));assert.equal(await window.webContents.executeJavaScript(\`cleanTouchChatMemory.currentId\`),photoConversationBefore.id);assert.equal(await window.webContents.executeJavaScript(\`document.querySelectorAll('#chat-messages .user img').length\`),2);
+  assert.equal(calls.length,importBefore);`);
+rep(".find(c=>c.title==='채팅만 할게')", ".find(c=>c.id===cleanTouchChatMemory.currentId)");
+rep("await cleanTouchChatMemory.select(current.id);return {reopened", "document.getElementById('chat-history').hidden=false;await cleanTouchChatMemory.select(current.id);if(document.getElementById('chat-history').hidden)throw Error('History closed on selection');if(document.getElementById('chat-messages').textContent.includes('cleantouch-title'))throw Error('Title metadata leaked into answer');return {reopened");
+rep("c.title==='복원용 가방'", "c.title==='복원용 가방 살펴보기'");
+rep("document.getElementById('chat-history-toggle').click();await new Promise(r=>setTimeout(r,100));const row=", "if(document.getElementById('chat-history').hidden)document.getElementById('chat-history-toggle').click();await new Promise(r=>setTimeout(r,100));const row=");
+rep('chatHistory:true,photoRestored:true', 'chatHistory:true,uploadKeepsConversation:true,historyStaysOpen:true,summaryTitle:true,photoRestored:true');
+fs.writeFileSync(file,s);

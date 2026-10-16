@@ -1,0 +1,1 @@
+﻿const asar=require('../cleantouch-desktop/node_modules/@electron/asar');const s=asar.extractFile('cleantouch-desktop/dist-chat-modes/win-unpacked/resources/app.asar','place-chat.js').toString();console.log(JSON.stringify({productButton:s.includes("el('chat-product').onclick"),captureErrorRestoresChat:s.includes('if(ui.focusPicker.hidden)')}));

@@ -1,0 +1,6 @@
+{
+ "schemaVersion":1,
+ "task":"identification",
+ "scope":"Observed development regression: a tightly cropped video object without scene context. Not a representative benchmark.",
+ "cases":[{"id":"saber-tight-crop","groupId":"public-video-red-saber","split":"development","category":"toy","targetPresent":true,"expectedLabels":["빨간색 광선검","빨간색 광선검 장난감"],"conditions":["tight-crop","no-context","video-frame"]}]
+}

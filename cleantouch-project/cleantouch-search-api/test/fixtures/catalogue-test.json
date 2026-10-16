@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "dataClass": "test",
+  "tenantId": "demo-merchant",
+  "source": {"id":"fixture-only","permissionReference":"TEST DATA ONLY - fictional products, no purchase","updatedAt":"2026-10-15T00:00:00Z"},
+  "products": [
+    {"id":"bag-a","title":"테스트 숄더백 A","brand":"CleanTouchDemo","modelCode":"BAG-A100","category":"bag","variants":[
+      {"sku":"bag-a-black-m","color":"검정","size":"M","images":["https://images.example.com/bag-a-black.jpg"],"offers":[{"url":"https://shop.example.com/products/bag-a-black-m","country":"KR","currency":"KRW","price":0,"availability":"unknown","checkedAt":"2026-10-15T00:00:00Z"}]},
+      {"sku":"bag-a-navy-m","color":"남색","size":"M","images":["https://images.example.com/bag-a-navy.jpg"],"offers":[{"url":"https://shop.example.com/products/bag-a-navy-m","country":"KR","currency":"KRW","price":0,"availability":"unknown","checkedAt":"2026-10-15T00:00:00Z"}]}
+    ]},
+    {"id":"bag-b","title":"테스트 숄더백 B","brand":"OtherDemo","modelCode":"BAG-A100","category":"bag","variants":[
+      {"sku":"bag-b-black","color":"검정","images":["https://images.example.com/bag-b.jpg"],"offers":[{"url":"https://shop.example.com/products/bag-b-black","country":"KR","currency":"KRW","availability":"unknown","checkedAt":"2026-10-15T00:00:00Z"}]}
+    ]},
+    {"id":"toy-a","title":"테스트 광선검 장난감","brand":"CleanTouchDemo","modelCode":"TOY-L200","category":"toy","variants":[
+      {"sku":"toy-green","color":"초록","images":["https://images.example.com/toy-green.jpg"],"offers":[{"url":"https://shop.example.com/products/toy-green","country":"US","currency":"USD","availability":"unknown","checkedAt":"2026-10-15T00:00:00Z"}]}
+    ]}
+  ],
+  "contents":[{"id":"demo-video","title":"SDK 연결 검사용 영상","products":[{"sku":"bag-a-black-m","activeFrom":4,"activeTo":13,"keyframes":[{"time":4,"x":20,"y":20,"width":30,"height":40},{"time":13,"x":40,"y":20,"width":30,"height":40}]}]}]
+}

@@ -1,0 +1,26 @@
+[build]
+  base = "cleantouch-project/cleantouch-search-api"
+  command = "npm run build"
+  publish = "public"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["sharp"]
+  included_files = ["node_modules/@img/sharp-linux-x64/**", "node_modules/@img/sharp-libvips-linux-x64/**"]
+
+[db.migrations]
+  path = "db/migrations"
+
+[database.migrations]
+  path = "db/migrations"
+
+[[redirects]]
+  from = "/v1/place-chat/*"
+  to = "/.netlify/functions/place-chat/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/v1/place-chat"
+  to = "/.netlify/functions/place-chat"
+  status = 200

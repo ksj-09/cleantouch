@@ -1,0 +1,4 @@
+﻿const fs=require('fs');let p='scripts/serve-cleantouch-downloads.mjs',s=fs.readFileSync(p,'utf8');s=s.replace('const files = new Map([',`const files = new Map([
+  ['CleanTouch-Setup-0.1.26.exe', { path: path.join(root, 'artifacts/downloads/CleanTouch-Setup-0.1.26.exe'), type: 'application/vnd.microsoft.portable-executable' }],
+  ['CleanTouch-Portable-0.1.26.exe', { path: path.join(root, 'artifacts/downloads/CleanTouch-Portable-0.1.26.exe'), type: 'application/vnd.microsoft.portable-executable' }],
+  ['CleanTouch-Android-0.4.8-debug.apk', { path: path.join(root, 'artifacts/downloads/CleanTouch-Android-0.4.8-debug.apk'), type: 'application/vnd.android.package-archive' }],`);const at=s.indexOf('<li>');s=s.slice(0,at)+s.slice(at).replaceAll('0.1.25','0.1.26').replaceAll('0.4.7','0.4.8');fs.writeFileSync(p,s);fs.appendFileSync('.gitignore','\ncleantouch-desktop/dist-chat-modes/\n');

@@ -15,23 +15,23 @@ jobs:
       - name: Check version
         shell: pwsh
         run: |
-          $version = (Get-Content cleantouch-desktop/package.json -Raw | ConvertFrom-Json).version
+          $version = (Get-Content cleantouch-project/cleantouch-desktop/package.json -Raw | ConvertFrom-Json).version
           if ($env:GITHUB_REF_NAME -ne "v$version") { throw 'Tag and app version must match' }
       - run: npm ci
-        working-directory: cleantouch-search-api
+        working-directory: cleantouch-project/cleantouch-search-api
       - run: npm ci
-        working-directory: cleantouch-desktop
+        working-directory: cleantouch-project/cleantouch-desktop
       - run: npm run test:updates
-        working-directory: cleantouch-desktop
+        working-directory: cleantouch-project/cleantouch-desktop
       - run: npm run dist:win
-        working-directory: cleantouch-desktop
+        working-directory: cleantouch-project/cleantouch-desktop
       - run: node scripts/prepare-update-release.cjs
-        working-directory: cleantouch-desktop
+        working-directory: cleantouch-project/cleantouch-desktop
       - name: Prepare release for verification
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $assets = Get-ChildItem cleantouch-desktop/dist/update-release -File | ForEach-Object { $_.FullName }
-          if (!(Test-Path cleantouch-desktop/dist/update-release/latest.yml)) { throw 'Missing update metadata' }
+          $assets = Get-ChildItem cleantouch-project/cleantouch-desktop/dist/update-release -File | ForEach-Object { $_.FullName }
+          if (!(Test-Path cleantouch-project/cleantouch-desktop/dist/update-release/latest.yml)) { throw 'Missing update metadata' }
           gh release create $env:GITHUB_REF_NAME @assets --draft --verify-tag --title "CleanTouch $env:GITHUB_REF_NAME" --notes 'Windows installation and update files. Publish after validating the installer.'

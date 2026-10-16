@@ -1,0 +1,42 @@
+const {app,BrowserWindow,ipcMain,protocol,session}=require('electron');
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..'),profile=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'cleantouch-voice-'));
+const fakeAudio=path.join(profile,'fake-speech.wav');fs.writeFileSync(fakeAudio,require('../voice-audio').wav([Float32Array.from({length:16000*6},(_,i)=>.12*Math.sin(i*.14))],16000));
+app.setPath('userData',profile);app.commandLine.appendSwitch('use-fake-device-for-media-stream');app.commandLine.appendSwitch('use-file-for-fake-audio-capture',fakeAudio);
+protocol.registerSchemesAsPrivileged([{scheme:'cleantouch',privileges:{standard:true,secure:true,supportFetchAPI:true,corsEnabled:true}}]);
+app.whenReady().then(async()=>{try{
+ let win,allowed=true,approvals=0,speechCalls=0,lateSpeech=null,delaySpeech=false;
+ const microphoneGate=require('../microphone-consent.cjs').createMicrophoneGate(()=>win);
+ ipcMain.handle('voice:authorize',event=>{approvals++;return microphoneGate.authorize(event.sender,event.senderFrame,async()=>allowed);});ipcMain.handle('voice:revoke',()=>microphoneGate.revoke());ipcMain.handle('place:cancel',()=>{});
+ ipcMain.handle('place:chat',(_e,payload)=>{if(payload.task!=='speech')throw Error('Unexpected AI request');speechCalls++;const bytes=Buffer.from(payload.audio,'base64');assert.equal(bytes.toString('ascii',0,4),'RIFF');assert.equal(bytes.readUInt32LE(24),16000);assert(bytes.length>=11244);return delaySpeech?new Promise(r=>lateSpeech=r):{text:'이 신발과 비슷한 상품 찾아줘'};});
+ ipcMain.handle('chats:list',()=>[]);ipcMain.handle('chats:save',(_e,record)=>record);ipcMain.handle('video:time',()=>({available:false}));for(const m of ['get','activity'])ipcMain.handle('updates:'+m,()=>({status:'unsupported'}));
+ ipcMain.handle('window:layout',()=>({pinned:true}));
+ protocol.handle('cleantouch',async request=>{const file=path.join(root,new URL(request.url).pathname.slice(1));return new Response(await fs.promises.readFile(file),{headers:{'content-type':{'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.wasm':'application/wasm'}[path.extname(file)]||'application/octet-stream'}});});
+ win=new BrowserWindow({show:false,width:420,height:820,webPreferences:{preload:path.join(root,'preload.cjs'),sandbox:true,contextIsolation:true,backgroundThrottling:false}});
+ const mainSource=fs.readFileSync(path.join(root,'main.cjs'),'utf8'),permissionStart=mainSource.indexOf('session.defaultSession.setPermissionCheckHandler'),permissionEnd=mainSource.indexOf("  ipcMain.handle('capture:authorize'",permissionStart);
+ require('node:vm').runInNewContext(mainSource.slice(permissionStart,permissionEnd),{session,microphoneGate,mainWindow:win});
+ await win.loadURL('cleantouch://app/index.html');
+ const run=expression=>win.webContents.executeJavaScript(expression,true);
+ assert.equal(await run(`(async()=>{try{const media=await navigator.mediaDevices.getUserMedia({audio:true,video:false});media.getTracks().forEach(t=>t.stop());return false;}catch{return true;}})()`),true,'Native permissions must deny an unapproved microphone');
+
+ async function until(expression){const deadline=Date.now()+12000;while(Date.now()<deadline){if(await run(expression))return;await new Promise(r=>setTimeout(r,50));}throw Error('Voice state timed out: '+expression+' / '+await run("document.getElementById('voice-status-text').textContent"));}
+ await run('(async()=>{cleanTouchTutorial.close();await cleanTouchPlaceChat.open();window.voiceTracks=[];window.microphoneCalls=0;const get=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);navigator.mediaDevices.getUserMedia=async options=>{microphoneCalls++;if(options.video!==false)throw Error("Camera requested");const stream=await get(options);voiceTracks.push(...stream.getTracks());return stream;};window.voiceSent=0;window.voiceHandlers=null;cleanTouchPlaceChat.prepareVoice=async()=>true;cleanTouchLive.enableVoice=h=>{voiceHandlers=h;};cleanTouchLive.sendAudio=data=>{voiceSent++;if(atob(data).length<100)throw Error("PCM too short");return true;};cleanTouchLive.disableVoice=()=>{const h=voiceHandlers;voiceHandlers=null;h?.onStopped();};})()');
+ assert.equal(approvals,0);assert.equal(await run('microphoneCalls'),0);
+ await run("document.getElementById('chat-microphone').click()");await until("document.getElementById('place-chat').dataset.voiceState==='listening'&&voiceSent>3");
+ assert.equal(speechCalls,0,'Live voice must stream instead of uploading a recording for transcription');
+ assert.equal(await run("document.getElementById('chat-send').disabled"),true);
+ await run("window.echoMuted=0;window.echoCheck=cleanTouchVoiceEcho.EchoGuard.prototype.isEcho;window.originalVoiceSend=cleanTouchLive.sendAudio;cleanTouchVoiceEcho.EchoGuard.prototype.isEcho=()=>true;cleanTouchLive.sendAudio=(data,speaking)=>{if(!speaking&&[...atob(data)].every(c=>c.charCodeAt(0)===0))echoMuted++;return originalVoiceSend(data,speaking);};true");await until('echoMuted>0');await run('cleanTouchVoiceEcho.EchoGuard.prototype.isEcho=echoCheck;cleanTouchLive.sendAudio=originalVoiceSend;true');
+ await run('voiceHandlers.onInput("안녕");voiceHandlers.onAnswerStart();voiceHandlers.onText("안녕하세요. 무엇을 도와드릴까요?");voiceHandlers.onTurnComplete();voiceHandlers.onInput("내가 방금 뭐라고 했지?");voiceHandlers.onAnswerStart();voiceHandlers.onText("안녕이라고 하셨어요.");voiceHandlers.onTurnComplete();');
+ assert.equal(await run("document.querySelectorAll('.chat-message.user').length"),2);assert.equal(await run("document.getElementById('chat-input').value"),'');
+ assert.equal(await run('cleanTouchVoice.conversation'),true,'Voice must keep listening after a reply');
+ const before=await run('voiceSent');await new Promise(r=>setTimeout(r,250));assert(await run('voiceSent')>before);
+ await run('voiceHandlers.onInput("잠깐");voiceHandlers.onAnswerStart();voiceHandlers.onText("말씀하세요");voiceHandlers.onInterrupted();');
+ await run("window.voiceEndSignals=0;cleanTouchLive.endAudio=()=>voiceEndSignals++;document.getElementById('voice-mode').click()");const quietBefore=await run('voiceSent');await new Promise(r=>setTimeout(r,250));assert.equal(await run('voiceSent'),quietBefore,'No surrounding audio may be sent in hold mode before the user presses');
+ assert.equal(await run("document.getElementById('chat-form').getBoundingClientRect().bottom<=document.getElementById('place-chat').getBoundingClientRect().bottom"),true,'Manual speech controls must fit the small window');
+ await run("document.getElementById('voice-hold').dispatchEvent(new KeyboardEvent('keydown',{key:' ',bubbles:true}))");await until('voiceSent>'+quietBefore);await run("document.getElementById('voice-hold').dispatchEvent(new KeyboardEvent('keyup',{key:' ',bubbles:true}))");const released=await run('voiceSent');await new Promise(r=>setTimeout(r,250));assert.equal(await run('voiceSent'),released,'Releasing the talk button must stop audio immediately');assert(await run('voiceEndSignals')>=2);await run("document.getElementById('voice-mode').click()");
+ await run("document.getElementById('chat-microphone').click()");assert.equal(await run("voiceTracks.every(t=>t.readyState==='ended')"),true);assert.equal(await run('cleanTouchVoice.busy'),false);
+ allowed=false;await run("document.getElementById('chat-microphone').click()");await until("!cleanTouchVoice.busy");assert.equal(await run('microphoneCalls'),1);
+ allowed=true;await run("document.getElementById('chat-microphone').click()");await until('cleanTouchVoice.conversation');await run("document.getElementById('chat-reset').click()");assert.equal(await run("voiceTracks.every(t=>t.readyState==='ended')"),true);assert.equal(await run('cleanTouchVoice.busy'),false);
+ await run("document.getElementById('chat-microphone').click()");await until('cleanTouchVoice.conversation');await run('voiceHandlers.onStopped(new Error("connection lost"))');assert.equal(await run("voiceTracks.every(t=>t.readyState==='ended')"),true);
+ console.log(JSON.stringify({noAutomaticMicrophone:true,realAudioWorklet:true,streamingPcm:true,noManualSend:true,multipleVoiceTurns:true,keepsListening:true,interruption:true,microphoneReleased:true,denialRespected:true,resetStopsMicrophone:true,disconnectStopsMicrophone:true}));app.exit(0);
+ }catch(error){console.error(error);app.exit(1);}});

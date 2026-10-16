@@ -1,0 +1,17 @@
+{
+ "kind":"catalogue_contract",
+ "description":"Fictional deterministic lookup/SDK contract cases. This is NOT an image recognition benchmark.",
+ "cases":[
+  {"id":"unknown-identity","lookup":{"color":"검정","country":"KR"},"expectedStatus":"needs_evidence","expectedSkus":[]},
+  {"id":"options-required","lookup":{"brand":"CleanTouchDemo","modelCode":"BAG-A100","country":"KR"},"expectedStatus":"options_required","expectedSkus":["bag-a-black-m","bag-a-navy-m"]},
+  {"id":"black-bag","lookup":{"brand":"CleanTouchDemo","modelCode":"BAG-A100","color":"검정","size":"M","country":"KR"},"expectedStatus":"identifier_match","expectedSkus":["bag-a-black-m"]},
+  {"id":"same-code-other-brand","lookup":{"brand":"OtherDemo","modelCode":"BAG-A100","country":"KR"},"expectedStatus":"identifier_match","expectedSkus":["bag-b-black"]},
+  {"id":"wrong-colour","lookup":{"brand":"CleanTouchDemo","modelCode":"BAG-A100","color":"보라","country":"KR"},"expectedStatus":"not_found","expectedSkus":[]},
+  {"id":"unknown-model","lookup":{"brand":"CleanTouchDemo","modelCode":"UNKNOWN-999","country":"KR"},"expectedStatus":"not_found","expectedSkus":[]},
+  {"id":"toy-not-sold-in-kr","lookup":{"brand":"CleanTouchDemo","modelCode":"TOY-L200","country":"KR"},"expectedStatus":"region_unavailable","expectedSkus":["toy-green"]},
+  {"id":"toy-us-offer","lookup":{"brand":"CleanTouchDemo","modelCode":"TOY-L200","country":"US"},"expectedStatus":"identifier_match","expectedSkus":["toy-green"]},
+  {"id":"video-registered-item","resolve":{"contentId":"demo-video","time":8,"point":{"x":0.45,"y":0.4},"country":"KR"},"expectedStatus":"publisher_mapped","expectedSkus":["bag-a-black-m"]},
+  {"id":"video-outside-region","resolve":{"contentId":"demo-video","time":8,"point":{"x":0.99,"y":0.99},"country":"KR"},"expectedStatus":"not_found","expectedSkus":[]},
+  {"id":"video-range-ended","resolve":{"contentId":"demo-video","time":13.01,"point":{"x":0.45,"y":0.4},"country":"KR"},"expectedStatus":"not_found","expectedSkus":[]}
+ ]
+}

@@ -1,0 +1,11 @@
+# 0.1.58 — voice input and interruption safety (Windows)
+
+- Add an in-memory speaker-reference guard alongside the microphone's requested browser echo cancellation and noise suppression. Highly correlated delayed/attenuated playback frames are replaced with silence, not forwarded as a new spoken command. This is an extra guard, not a replacement for acoustic echo cancellation or a guarantee of speaker identification.
+- Keep automatic conversation as the default. The optional noisy-room mode forwards microphone samples only while the talk button is held. Pointer release/cancellation, focus loss and keyboard release stop forwarding; release signals audio-stream end. This is an input transmission gate; server speech detection can still detect a pause while the button is held.
+- Relax server speech endpointing to 1.5 seconds with low end sensitivity. This trades some response speed for fewer premature cuts during short pauses.
+- A dropped Live socket immediately ends its voice callbacks and releases the microphone through the existing controller. AI reconnection does not reopen the microphone without another explicit user action. Conversation context and session resumption remain available.
+- Raw volume alone no longer extends the two-minute conversation inactivity timer.
+
+Validation: 123 desktop unit tests and 76 API tests; Electron integration with a generated fake microphone source verified zeroed echo frames, no forwarding outside a held button, release/end signals, small-window layout, permission denial and cleanup. Existing chat, upload and history integration passed. A real draft relay check used generated Korean speech with the revised setup: one connection across two voice starts, native audio replies, and memory of the fictional name from the earlier turn.
+
+Remaining hardware validation: real speaker-to-microphone acoustics, background TV voices, device delay and echo paths, quiet speech, long pauses, and actual network changes. The guard cannot reliably distinguish every human voice in a video from the user. No ambient microphone audio was captured during the automated checks. Android and public-service durable quota/authentication work are not part of this Windows voice patch.

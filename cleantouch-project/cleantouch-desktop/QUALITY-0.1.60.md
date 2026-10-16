@@ -1,0 +1,7 @@
+# Windows fullscreen capture fix — 0.1.60
+
+YouTube changes the accessible player name to `YouTube 동영상 플레이어 전체화면 모드` in fullscreen. The region helper previously matched only its ordinary name, so tracking failed closed and no scene could be analyzed. Fullscreen player names are now recognized and player bounds are intersected with the window without removing eight pixels from its edges.
+
+The native helper receives the Electron owner's process ID. Its own overlay does not count as an unrelated covering window; the capture planner blacks out the overlapping application rectangles instead. Panels covering over 25% of the video still block capture, as do unrelated covering windows. No unlinked desktop fallback was added.
+
+Validation: 127 desktop unit tests passed, including fullscreen 1920×1080 geometry, widget masking, scaled/secondary displays, stale regions and unrelated occlusion. On the existing public YouTube landscape video, desktop automation entered fullscreen and observed the changed player name. The running development preview then reported the exact 1920×1080 region, occluded=false, a permitted capture plan and its own widget mask. Saved scenes increased from 8 to 9 and beyond. Leaving fullscreen restored the normal player bounds; reentering fullscreen restored full-display bounds. Existing scene data and conversations were preserved. The development preview's running helper was updated in place; the packaged release passes the owner ID at startup. Android and server code were unchanged.

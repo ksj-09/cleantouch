@@ -1,0 +1,1 @@
+﻿const fs=require('fs'),cp=require('child_process');const b=cp.spawnSync('.local/android-toolchain/sdk/platform-tools/adb.exe',['exec-out','screencap','-p'],{maxBuffer:20e6}).stdout;if(b?.readUInt32BE(0)===0x89504e47){fs.writeFileSync('artifacts/verification/mobile-chat-modes-now.png',b);console.log('Screenshot saved')}

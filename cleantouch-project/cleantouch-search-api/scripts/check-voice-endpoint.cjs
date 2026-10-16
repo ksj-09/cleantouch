@@ -1,0 +1,7 @@
+const fs=require('node:fs'),path=require('node:path');
+const raw=fs.readFileSync(path.resolve(__dirname,'../../.local/voice-check/synthetic-korean.wav'));
+let position=12,samples,rate;
+while(position+8<=raw.length){const tag=raw.toString('ascii',position,position+4),length=raw.readUInt32LE(position+4),begin=position+8;if(tag==='fmt '){if(raw.readUInt16LE(begin)!==1||raw.readUInt16LE(begin+2)!==1||raw.readUInt16LE(begin+14)!==16)throw Error('Invalid synthetic audio');rate=raw.readUInt32LE(begin+4);}if(tag==='data'){samples=Float32Array.from({length:Math.floor(length/2)},(_,i)=>raw.readInt16LE(begin+i*2)/32768);}position=begin+length+(length%2);}
+if(!samples||!rate)throw Error('Synthetic speech missing');
+const bytes=require('../../cleantouch-desktop/voice-audio').wav([samples],rate);
+(async()=>{const base=process.argv[2];if(!base?.startsWith('https://'))throw Error('Specify an HTTPS test endpoint');const response=await fetch(base+'/v1/place-chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({task:'speech',audio:Buffer.from(bytes).toString('base64')}),signal:AbortSignal.timeout(55000)});const data=await response.json();const recognized=/가방/.test(data.text||'')&&/비슷/.test(data.text||'');console.log(JSON.stringify({status:response.status,recognizedKorean:recognized,text:data.text,audioStored:data.retention?.audioStored,message:!response.ok?data.message:undefined}));if(!response.ok||!recognized||data.retention?.audioStored!==false)process.exitCode=1;})().catch(error=>{console.error(error.message);process.exitCode=1;});

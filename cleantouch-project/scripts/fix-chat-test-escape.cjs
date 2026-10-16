@@ -1,0 +1,1 @@
+const fs=require('node:fs'),path=require('node:path');const file=path.resolve(__dirname,'../cleantouch-desktop/test/place-chat.cjs');let s=fs.readFileSync(file,'utf8');s=s.replace("text:'테스트 화면 답변\\n<", "text:'테스트 화면 답변\\\\n<");fs.writeFileSync(file,s);

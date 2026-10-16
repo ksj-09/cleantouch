@@ -1,0 +1,1 @@
+﻿const fs=require('fs');for(const p of ['cleantouch-desktop/package.json','cleantouch-desktop/package-lock.json','cleantouch-desktop/index.html'])fs.writeFileSync(p,fs.readFileSync(p,'utf8').replaceAll('0.1.27','0.1.28'));fs.appendFileSync('.gitignore','\ncleantouch-desktop/dist-import/\n');

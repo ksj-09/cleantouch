@@ -1,0 +1,8 @@
+{
+ "schemaVersion":1,
+ "scope":"Controlled development checks only. Candidate URLs were supplied by the evaluator. Not an independent accuracy benchmark.",
+ "cases":[
+  {"id":"black-earbud-crop","groupId":"soundcore-liberty4-public-photo","split":"development","category":"earbuds","targetPresent":true,"expectedProductIds":["https://www.soundcore.com/products/liberty-4-a3953z11"],"conditions":["cropped","different-colour-distractor"]},
+  {"id":"saber-among-earbuds","groupId":"public-video-red-saber","split":"development","category":"toy","targetPresent":false,"expectedProductIds":[],"conditions":["wrong-category-only","video-frame"]}
+ ]
+}

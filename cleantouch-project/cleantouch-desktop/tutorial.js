@@ -1,0 +1,29 @@
+(()=>{
+ const el=id=>document.getElementById(id),dialog=el('tutorial');let step=0,returnFocus=null;
+ const lessons=[
+  {title:'AI와 편하게 대화하기',summary:'사진 없이도 바로 물어보세요.',description:'AI에게 물어보기를 열고 질문을 보내면 됩니다. 채팅을 열거나 질문을 보냈다는 이유로 화면 공유가 켜지지 않아요.',tip:'화면을 보여주고 싶을 때만 화면 함께 보기를 눌러 주세요.',type:'chat'},
+  {title:'내가 허용할 때만 화면 공유',summary:'무엇을 보내는지 먼저 확인해요.',description:'화면 함께 보기를 누르면 허용 안내가 나옵니다. 허용한 뒤에만 영상 영역의 장면이 AI에 전달돼요. 마이크와 소리는 사용하지 않습니다.',tip:'공유 종료나 대화창 X를 누르면 AI 화면 전송이 멈춰요. 화면 수집과 AI 공유는 별개입니다.',type:'permission'},
+  {title:'영상 속 마음에 드는 상품 찾기',summary:'위젯에서 상품을 선택해요.',description:'화면 연결하기를 누른 뒤 작은 위젯을 띄워두세요. 마음에 드는 상품이 나오면 이 상품 찾기를 누르고 그 상품을 터치합니다.',tip:'아래 연습 화면의 가방을 눌러 보세요. 실제 상품의 표시가 부정확하면 영역을 더하거나 빼서 조정할 수 있어요.',type:'pick'},
+  {title:'검색하고, 사진으로 비교하기',summary:'AI 설명부터 쇼핑 검색까지.',description:'AI가 확인한 색과 형태로 유사 상품을 찾아보세요. 쇼핑 검색은 상품 이름으로, Lens는 선택한 상품 사진으로 비교합니다.',tip:'같은 상품이라고 확정한 결과는 아닐 수 있어요. 구매 전 판매 사진·옵션·가격을 확인하세요.',type:'shop'},
+  {title:'이전 대화 이어가기',summary:'닫아도 대화는 남아 있어요.',description:'AI 창 왼쪽 위 목록 버튼에서 이전 대화를 고릅니다. 앱을 다시 켜도 이 기기에 저장한 대화와 선택 사진을 이어서 볼 수 있어요.',tip:'큰 화면에는 옆 사이드바, 위젯에는 펼쳐지는 목록이 나옵니다. 필요 없는 대화는 목록에서 삭제할 수 있어요.',type:'history'}
+ ];
+ function close(){if(dialog.open)dialog.close();localStorage.setItem('cleantouch-guide-seen-v1','yes');returnFocus?.focus();}
+ function open(index){if(!dialog.open)returnFocus=document.activeElement;el('guide-welcome').hidden=Number.isInteger(index);el('guide-lesson').hidden=!Number.isInteger(index);if(Number.isInteger(index)){step=index;render();}if(!dialog.open)dialog.showModal();}
+ function node(tag,text,className){const n=document.createElement(tag);if(text)n.textContent=text;if(className)n.className=className;return n;}
+ function render(){const lesson=lessons[step];el('guide-number').textContent=`STEP ${step+1}`;el('guide-step-title').textContent=lesson.title;el('guide-step-description').textContent=lesson.description;el('guide-step-tip').textContent=lesson.tip;el('guide-progress').textContent=`${step+1} / ${lessons.length}`;el('guide-back').disabled=step===0;el('guide-next').textContent=step===lessons.length-1?'연습 완료':'다음';
+  const nav=el('guide-steps');nav.replaceChildren();lessons.forEach((l,i)=>{const b=node('button',String(i+1)+' '+l.title);b.type='button';b.className=i===step?'selected':'';b.setAttribute('aria-current',i===step?'step':'false');b.onclick=()=>{step=i;render();};nav.append(b);});
+  const demo=el('guide-demo');demo.replaceChildren();demo.append(node('small','연습 화면 · 실제 화면 전송 없음','guide-demo-label'));
+  if(lesson.type==='chat'){demo.append(node('div','AI와 대화','guide-demo-heading'),node('div','처음 쓰는데 뭘 할 수 있어?','guide-demo-message user'),node('div','대화만 해도 좋아요! 상품이나 장소를 보고 싶을 때는 사진이나 화면을 직접 공유해 주세요.','guide-demo-message model'),node('p','○ 화면 공유 꺼짐','guide-demo-status'));}
+  if(lesson.type==='permission'){demo.append(node('div','AI와 영상을 함께 볼까요?','guide-demo-heading'),node('p','영상 영역만 전송 · 마이크와 소리 사용 안 함'));const status=node('p','기본 상태: 화면 공유 꺼짐','guide-demo-status'),deny=node('button','채팅만 할게요','secondary'),allow=node('button','허용 연습','primary');deny.onclick=()=>status.textContent='공유를 거절해도 채팅은 계속할 수 있어요.';allow.onclick=()=>status.textContent='허용 동작을 연습했어요. 실제 화면 공유는 켜지지 않습니다.';demo.append(status,deny,allow);}
+  if(lesson.type==='pick'){demo.append(node('div','위젯에서 상품 찾기','guide-demo-heading'));const bag=node('button',null,'guide-demo-bag');bag.type='button';bag.setAttribute('aria-label','연습용 보라색 가방 선택');bag.innerHTML='<svg viewBox="0 0 240 180" aria-hidden="true"><path class="guide-bag-outline" d="M57 57h126l-10 107H67Z"/><path d="M64 62h112l-8 94H72Z" fill="#8562de"/><path d="M88 67V48a32 32 0 0 1 64 0v19" fill="none" stroke="#4f327e" stroke-width="9"/><path d="M105 95h30v19h-30Z" fill="#f3de85"/></svg>';const hint=node('p','가방을 누르면 상품 표시를 연습할 수 있어요.','guide-demo-status');bag.onclick=()=>{bag.classList.toggle('marked');hint.textContent=bag.classList.contains('marked')?'가방을 선택했어요! 실제 화면에서도 상품을 누르고 표시를 확인하세요.':'가방을 다시 눌러 선택해 보세요.';};demo.append(bag,hint);}
+  if(lesson.type==='shop'){demo.append(node('div','보라색 가방','guide-demo-heading'),node('p','색과 형태가 가까운 상품부터 비교해요.'));const status=node('p','연습용 상품 · 브랜드와 가격을 확정하지 않아요.','guide-demo-status');for(const label of ['유사 상품 쇼핑 검색','사진으로 비교 · Lens']){const b=node('button',label,'secondary');b.onclick=()=>status.textContent=label+'을 눌렀어요. 연습에서는 사이트를 열거나 사진을 전송하지 않습니다.';demo.append(b);}demo.append(status);}
+  if(lesson.type==='history'){demo.append(node('div','내 대화','guide-demo-heading'));const preview=node('p','왼쪽 목록에서 대화를 골라 보세요.','guide-demo-status');for(const label of ['영상 속 보라색 가방','처음 사용해 본 날']){const b=node('button',label,'secondary');b.onclick=()=>preview.textContent='“'+label+'” 대화를 불러왔어요. 실제 앱에서도 이렇게 이어갈 수 있어요.';demo.append(b);}demo.append(preview);}
+ }
+ lessons.forEach((lesson,i)=>{const b=node('button',null,'guide-topic');b.type='button';b.append(node('span',String(i+1),'guide-topic-number'),node('strong',lesson.title),node('small',lesson.summary));b.onclick=()=>open(i);el('guide-topics').append(b);});
+ for(const id of ['guide-close','guide-skip'])el(id).onclick=close;el('guide-start').onclick=()=>open(0);el('guide-back').onclick=()=>{step=Math.max(0,step-1);render();};el('guide-next').onclick=()=>{if(step===lessons.length-1){localStorage.setItem('cleantouch-guide-complete-v1','yes');close();}else{step++;render();}};
+ dialog.addEventListener('cancel',event=>{event.preventDefault();close();});
+ const help=node('button','사용 가이드','secondary guide-open');help.type='button';help.onclick=()=>open();document.querySelector('.topbar').append(help);
+ const widgetHelp=node('button','사용 가이드','widget-link');widgetHelp.type='button';widgetHelp.onclick=()=>open();document.querySelector('.widget-footer').append(widgetHelp);
+ window.cleanTouchTutorial={open,close};
+ window.addEventListener('load',()=>{if(!localStorage.getItem('cleantouch-guide-seen-v1'))open();},{once:true});
+})();
